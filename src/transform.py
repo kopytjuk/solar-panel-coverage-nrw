@@ -1,3 +1,9 @@
+"""
+This module provides functions to transform geometries between UTM zone 32N
+(EPSG:25832) and WGS84 (EPSG:4326) coordinate reference systems using the
+pyproj and shapely libraries.
+"""
+
 import pyproj
 import shapely
 
