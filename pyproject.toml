@@ -1,0 +1,39 @@
+[tool.poetry]
+name = "roof-analysis"
+version = "0.1.0"
+description = ""
+authors = ["Marat Kopytjuk <kopytjuk@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pandas = "^2.2.3"
+numpy = "^2.0.0"
+shapely = "^2.0.6"
+geopandas = "^1.0.1"
+matplotlib = "^3.10.0"
+ipykernel = "^6.29.5"
+laspy = "^2.5.4"
+laszip = "^0.2.3"
+plotly-express = "^0.4.1"
+nbformat = "^5.10.4"
+requests = "^2.32.3"
+osmnx = "^2.0.1"
+rasterio = "^1.4.3"
+ultralytics = "^8.3.71"
+tqdm = "^4.67.1"
+
+[tool.poetry.scripts]
+extract-buildings = "tools.extract_buildings:extract_buildings"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 79
+indent-width = 4
