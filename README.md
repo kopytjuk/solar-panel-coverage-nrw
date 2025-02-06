@@ -1,4 +1,4 @@
-# Solar roof coverage
+# Solar panel roof coverage
 
 Determine the solar roof coverage in North Rhine Westphalia (NRW) using [OpenGeodata.NRW](https://www.opengeodata.nrw.de/produkte/) and OpenStreetMap.
 

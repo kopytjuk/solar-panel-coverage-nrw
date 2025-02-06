@@ -1,3 +1,4 @@
+import os
 import shutil
 from pathlib import Path
 
@@ -21,11 +22,17 @@ from src.utils import get_buildings_from_bbox
     type=click.Path(exists=True),
     default="/Users/kopytjuk/Code/roof-analysis/data/tile-info/dop_nw.csv",
 )
+@click.option(
+    "--image-data-location",
+    type=click.STRING,
+    default="data",
+)
 @click.option("--clean-output", is_flag=True)
 def extract_buildings(
     tile_name: str,
     output_location: str,
     tiles_overview_path: str,
+    image_data_location: str,
     clean_output: bool,
 ):
     click.echo(f"Processing tile: {tile_name}")
@@ -61,13 +68,11 @@ def extract_buildings(
     tile_manager = TileManager(tiles_overview_path)
 
     image_filename = tile_manager.get_file_name_for_tile(tile_name)
+    image_filepath = os.path.join(image_data_location, image_filename)
 
-    # TODO: construct path
-    image_filepath = f"data/{image_filename}"
-
-    with rasterio.open(image_filepath) as dataset:
+    with rasterio.open(image_filepath) as image_file:
         # transforms a UTM coordinate to pixel coordinates
-        affine_transform = dataset.transform
+        affine_transform = image_file.transform
 
         BUFFER_BUILDING: float = 5.0
 
@@ -93,12 +98,11 @@ def extract_buildings(
                 transform=affine_transform,
             )
 
-            image_data = dataset.read(window=crop_window)
+            image_data = image_file.read(window=crop_window)
 
             image_data = image_data[:3, ...]
-            image_data = np.moveaxis(
-                image_data, 0, -1
-            )  # change (3, H, W) to (H, W, 3)
+            # change (3, H, W) to (H, W, 3)
+            image_data = np.moveaxis(image_data, 0, -1)
 
             plt.imsave(
                 image_location / f"{building_id}_{int(BUFFER_BUILDING):d}.png",
