@@ -21,7 +21,6 @@ nbformat = "^5.10.4"
 requests = "^2.32.3"
 osmnx = "^2.0.1"
 rasterio = "^1.4.3"
-ultralytics = "^8.3.71"
 tqdm = "^4.67.1"
 
 [tool.poetry.scripts]

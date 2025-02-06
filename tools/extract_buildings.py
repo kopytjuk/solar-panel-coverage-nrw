@@ -27,20 +27,20 @@ from src.utils import get_buildings_from_bbox
     type=click.STRING,
     default="data",
 )
-@click.option("--clean-output", is_flag=True)
+@click.option("--keep-data", is_flag=True)
 def extract_buildings(
     tile_name: str,
     output_location: str,
     tiles_overview_path: str,
     image_data_location: str,
-    clean_output: bool,
+    keep_data: bool,
 ):
     click.echo(f"Processing tile: {tile_name}")
     click.echo(f"Saving output to: {output_location}")
 
     output_location = Path(output_location)
 
-    if clean_output:
+    if not keep_data:
         shutil.rmtree(str(output_location))
 
     image_location = output_location / "images"
