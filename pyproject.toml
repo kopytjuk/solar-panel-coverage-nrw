@@ -22,6 +22,7 @@ requests = "^2.32.3"
 osmnx = "^2.0.1"
 rasterio = "^1.4.3"
 tqdm = "^4.67.1"
+beautifulsoup4 = "^4.13.3"
 
 [tool.poetry.scripts]
 extract-buildings = "tools.extract_buildings:extract_buildings"

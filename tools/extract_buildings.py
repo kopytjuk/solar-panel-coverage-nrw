@@ -61,13 +61,18 @@ def extract_buildings(
 
     buildings_from_bbox_utm = buildings_from_bbox.to_crs(UTM_EPSG)
 
+    # determine the kWh per year for each building
+
     buildings_from_bbox_utm.to_file(
         output_location / "buildings.gpkg", layer="buildings", driver="GPKG"
     )
 
-    tile_manager = TileManager(tiles_overview_path)
+    tile_manager = TileManager.from_tile_file(tiles_overview_path)
 
-    image_filename = tile_manager.get_file_name_for_tile(tile_name)
+    image_tile_name = tile_manager.get_tile_name_from_point(
+        bbox_extent_utm.centroid.x, bbox_extent_utm.centroid.y
+    )
+    image_filename = image_tile_name + ".jp2"
     image_filepath = os.path.join(image_data_location, image_filename)
 
     with rasterio.open(image_filepath) as image_file:

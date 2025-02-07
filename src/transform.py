@@ -6,6 +6,7 @@ pyproj and shapely libraries.
 
 import pyproj
 import shapely
+from shapely import ops as shapely_ops
 
 UTM_EPSG = "EPSG:25832"
 
@@ -21,10 +22,10 @@ transformer_to_25832 = pyproj.Transformer.from_crs(
 def transform_utm32N_to_wgs84_geometry(
     geom: shapely.geometry.base.BaseGeometry,
 ) -> shapely.geometry.base.BaseGeometry:
-    return shapely.ops.transform(transformer_to_4326.transform, geom)
+    return shapely_ops.transform(transformer_to_4326.transform, geom)
 
 
 def transform_wgs84_to_utm32N_geometry(
     geom: shapely.geometry.base.BaseGeometry,
 ) -> shapely.geometry.base.BaseGeometry:
-    return shapely.ops.transform(transformer_to_25832.transform, geom)
+    return shapely_ops.transform(transformer_to_25832.transform, geom)

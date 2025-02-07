@@ -23,23 +23,16 @@ dop10rgbi_32_384_5619_1_nw_2023;0;2023-03-01;1404/23;DMCIII-27532_DMCIII;10;RGBI
 def tile_manager():
     # Use StringIO to simulate a file-like object containing the CSV data
     tile_overview_path = StringIO(CSV_DATA)
-    return TileManager(tile_overview_path)
+    return TileManager.from_tile_file(tile_overview_path)
 
 
-def test_get_file_name_for_tile(tile_manager):
-    # Test with a valid tile name
-    tile_name = "478_5740_1"
-    expected_file_name = "dop10rgbi_32_478_5740_1_nw_2024.jp2"
-    assert tile_manager.get_file_name_for_tile(tile_name) == expected_file_name
+def test_get_tile_name_from_point(tile_manager):
+    # Test with a point inside a tile
+    x, y = 478_500, 5739_500
+    expected_tile_name = "dop10rgbi_32_478_5739_1_nw_2024"
+    assert tile_manager.get_tile_name_from_point(x, y) == expected_tile_name
 
-    # Test with another valid tile name
-    tile_name = "384_5620_1"
-    expected_file_name = "dop10rgbi_32_384_5620_1_nw_2023.jp2"
-    assert tile_manager.get_file_name_for_tile(tile_name) == expected_file_name
-
-    # Test with an invalid tile name
-    tile_name = "999_9999_9"
-    with pytest.raises(
-        ValueError, match=f"Tile {tile_name} not found in the tile overview"
-    ):
-        tile_manager.get_file_name_for_tile(tile_name)
+    # Test with a point outside of any tile
+    x, y = 100_000, 1000_000
+    with pytest.raises(ValueError, match="No tile found for point"):
+        tile_manager.get_tile_name_from_point(x, y)
