@@ -42,12 +42,6 @@ class TileManager:
 
         return tile["tile_name"].iloc[0]
 
-    def get_all_tiles(self) -> list[str]:
-        tile_names = self.tile_info["tile_name"].str.extract(
-            r"dop10rgbi_\d+_(\d+_\d+_\d+)_"
-        )[0]
-        return tile_names.to_list()
-
     @classmethod
     def from_tile_file(cls, tile_overview_path: str) -> "TileManager":
         """Initialize the TileManager from the official overview CSV file like
@@ -75,6 +69,44 @@ class TileManager:
         tile_extent.columns = cls.extent_columns
         tile_info = pd.concat([tile_info, tile_extent], axis=1)
 
+        tile_info = tile_info[["tile_name"] + cls.extent_columns]
+
+        return cls(tile_info)
+
+    @classmethod
+    def from_html_extraction_result(cls, fp: str):
+        """Read tile information from the HTML extraction result file created by
+        the `scripts/extract_html_table.py` script.
+
+        E.g. `Strahlungsenergie-NRW-KWh-Yr-Shd-50cm-V23_32280_5648_4.tif` -> 280, 5648, 4
+        Note, that the leading 32 in 32280 should be separated with "_", probably
+        an error in the naming of the data.
+
+        Args:
+            fp (str): file path
+        """
+        tile_info = pd.read_csv(fp, sep=",")
+        tile_info["tile_name"] = tile_info["File"]
+
+        extent_list = list()
+
+        for name in tile_info["tile_name"]:
+            # remove file ending
+            name = name.split(".")[0]
+
+            name_split = name.split("_")
+
+            first_part = name_split[1]
+            min_x = int(first_part.replace("32", "")) * 1000
+            min_y = int(name_split[2]) * 1000
+            extent = int(name_split[3]) * 1000
+
+            extent_list.append(
+                {"min_x": min_x, "min_y": min_y, "extent": extent}
+            )
+
+        extent_df = pd.DataFrame(extent_list)
+        tile_info = pd.concat([tile_info, extent_df], axis=1)
         tile_info = tile_info[["tile_name"] + cls.extent_columns]
 
         return cls(tile_info)
