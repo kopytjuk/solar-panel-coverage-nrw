@@ -2,7 +2,7 @@ from io import StringIO
 
 import pytest
 
-from src.tile_management import TileManager
+from utils.tile_management import TileManager
 
 # Sample CSV data for testing
 CSV_DATA = """\

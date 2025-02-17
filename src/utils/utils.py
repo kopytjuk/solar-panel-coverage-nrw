@@ -26,6 +26,11 @@ def get_buildings_from_bbox(
     # Fetch buildings from OpenStreetMap
     buildings_gdf = ox.features_from_bbox(bbox, tags={"building": True})
 
+    # ways only
+    buildings_gdf = buildings_gdf.loc["way", :]
+    buildings_gdf["way_id"] = buildings_gdf.index
+    buildings_gdf.reset_index(drop=True, inplace=True)
+
     if "addr:street" not in buildings_gdf:
         buildings_gdf["addr:street"] = None
 
