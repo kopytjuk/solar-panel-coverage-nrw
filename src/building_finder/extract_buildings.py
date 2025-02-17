@@ -36,4 +36,5 @@ def extract_buildings(tile_name: str, output_location: str):
         output_location / f"{tile_name}_buildings.gpkg",
         layer="buildings",
         driver="GPKG",
+        index=True,
     )
