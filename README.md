@@ -10,12 +10,12 @@ Determine the solar roof coverage in North Rhine Westphalia (NRW) using [OpenGeo
 
 ## Tools
 
-### Building-Finder
+### Building-Selector
 
 Given a tile name and an output folder outputs a `gpkg` file with buildings and their GPS coordinates
 
 ```shell
-building-finder 511_5701_1 results
+building-selector 511_5701_1 results
 ```
 
 ### Image-Cropper
