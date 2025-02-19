@@ -7,6 +7,7 @@ readme = "README.md"
 packages = [
     { include = "building_finder", from = "src" },
     { include = "image_cropper", from = "src" },
+    { include = "energy_extractor", from = "src" },
     { include = "utils", from = "src" },
 ]
 
@@ -29,6 +30,7 @@ beautifulsoup4 = "^4.13.3"
 [tool.poetry.scripts]
 building-selector = "building_finder.cli:building_finder_cli"
 image-cropper = "image_cropper.cli:image_cropper_cli"
+energy-extractor = "energy_extractor.cli:energy_extractor_cli"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.0.0"
