@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import rasterio
 import shapely
+from tqdm import tqdm
 
 from utils import TileManager, transform_wgs84_to_utm32N_geometry
 
@@ -25,9 +26,9 @@ def crop_images_from_buildings(
 
     overview_data = list()
 
-    buildings = buildings.iloc[100:110]
+    # buildings = buildings.iloc[100:110]
 
-    for _, building in buildings.iterrows():
+    for _, building in tqdm(buildings.iterrows(), total=len(buildings)):
         building_id = building["building_id"]
         building_gps_polygon = building["geometry"]
 
@@ -43,6 +44,8 @@ def crop_images_from_buildings(
 
         with rasterio.open(tile_file_path) as image_data:
             affine_transform_px_to_geo = image_data.transform
+
+            res_x, res_y = image_data.res
 
             building_buffered_box = building_polygon.envelope.buffer(5.0)
 
@@ -94,6 +97,8 @@ def crop_images_from_buildings(
                 "image_filename": building_image_filename,
                 "geometry_wkt": building_polygon.wkt,
                 "geometry_px_wkt": building_polygon_px_image.wkt,
+                "res_x_px": res_x,  # pixel resolution in x direction in [m]
+                "res_y_px": res_y,  # pixel resolution in y direction in [m]
             }
         )
 
