@@ -10,7 +10,9 @@ from utils import (
 )
 
 
-def extract_buildings(tile_name: str, output_location: str):
+def extract_buildings(
+    tile_name: str, output_location: str, with_address: bool = False
+):
     output_location = Path(output_location)
 
     # Clear output location if it exists
@@ -26,14 +28,16 @@ def extract_buildings(tile_name: str, output_location: str):
     bbox_extent_wgs84 = transform_utm32N_to_wgs84_geometry(bbox_extent_utm)
 
     # Retrieve buildings from OSM within the bounding box
-    buildings_from_bbox = get_buildings_from_bbox(bbox_extent_wgs84.bounds)
+    buildings_from_bbox = get_buildings_from_bbox(
+        bbox_extent_wgs84.bounds, with_address=with_address
+    )
 
     if len(buildings_from_bbox) == 0:
         return
 
     # Save buildings to a geopackage
     buildings_from_bbox.to_file(
-        output_location / f"{tile_name}_buildings.gpkg",
+        output_location / "buildings_general_info.gpkg",
         layer="buildings",
         driver="GPKG",
         index=True,
