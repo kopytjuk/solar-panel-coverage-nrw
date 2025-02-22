@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 # Load the HTML file
 # e.g. table from
 # https://www.opengeodata.nrw.de/produkte/umwelt_klima/energie/solarkataster/strahlungsenergie_50cm/
-file_path = "/Users/kopytjuk/Code/roof-analysis/data/table-0.5x0.5.html"
+file_path = "/Users/kopytjuk/Code/roof-analysis/data/aerial_images.html"
 with open(file_path, "r", encoding="utf-8") as file:
     soup = BeautifulSoup(file, "html.parser")
 
@@ -28,4 +28,4 @@ df = pd.DataFrame(data, columns=["File", "Date", "Size"])
 # Display the DataFrame
 print(df)
 
-df.to_csv("data/Strahlungsenergie-0.5x0.5.csv", index=False)
+df.to_csv("data/aerial_images.csv", index=False)

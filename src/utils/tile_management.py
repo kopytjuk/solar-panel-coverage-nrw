@@ -1,11 +1,26 @@
+from pathlib import Path
+from urllib.parse import urljoin
+
 import pandas as pd
+import requests
+
+from utils.opengeodata_nrw import (
+    DOWNLOAD_BASE_URL,
+    FILE_EXTENSIONS,
+    DatasetType,
+)
 
 
 class TileManager:
     # internal columns
     extent_columns = ["min_x", "min_y", "extent"]
 
-    def __init__(self, tile_info: pd.DataFrame):
+    def __init__(
+        self,
+        tile_info: pd.DataFrame,
+        data_folder: str | Path | None = None,
+        tile_type: DatasetType | None = None,
+    ):
         """Initialize the TileManager
 
         Args:
@@ -14,7 +29,14 @@ class TileManager:
         """
         self.tile_info = tile_info
 
-    def get_tile_name_from_point(self, x: float, y: float) -> str:
+        self._data_folder = (
+            Path(data_folder) if isinstance(data_folder, str) else data_folder
+        )
+        self._tile_type = tile_type
+
+    def get_tile_name_from_point(
+        self, x: float, y: float, with_extension: bool = False
+    ) -> str:
         """Get the tile name for a given point
 
         Args:
@@ -40,10 +62,64 @@ class TileManager:
         if tile.shape[0] > 1:
             raise ValueError(f"Multiple tiles found for point ({x}, {y})")
 
-        return tile["tile_name"].iloc[0]
+        tile_name = tile["tile_name"].iloc[0]
+
+        extension = FILE_EXTENSIONS[self._tile_type]
+
+        if tile_name.endswith(f".{extension}"):
+            tile_name = tile_name.split(f".{extension}")[0]
+
+        if with_extension:
+            return f"{tile_name}.{extension}"
+        else:
+            return tile_name
+
+    def check_if_tile_exists(self, tile_name: str) -> bool:
+        """Check if a tile exists in the data folder
+
+        Args:
+            tile_name (str): tile name
+
+        Returns:
+            bool: True if the tile exists
+        """
+
+        file_extension = FILE_EXTENSIONS[self._tile_type]
+        tile_path = self._data_folder / f"{tile_name}.{file_extension}"
+        return tile_path.exists()
+
+    def download_tile(
+        self,
+        tile_name: str,
+        overwrite: bool = False,
+    ):
+        """Download a tile from a given URL
+
+        Args:
+            tile_name (str): tile name
+            overwrite (bool, optional): overwrite the file if it exists.
+                Defaults to False.
+        """
+        file_extension = FILE_EXTENSIONS[self._tile_type]
+        tile_filename = f"{tile_name}.{file_extension}"
+        tile_path = self._data_folder / tile_filename
+
+        if self.check_if_tile_exists(tile_name) and not overwrite:
+            print("File already exists, skipping download!")
+            return
+
+        base_url = DOWNLOAD_BASE_URL[self._tile_type]
+        download_url = urljoin(base_url, tile_filename)
+
+        download_file(download_url, str(tile_path))
 
     @classmethod
-    def from_tile_file(cls, tile_overview_path: str) -> "TileManager":
+    def from_tile_file(
+        cls,
+        tile_overview_path: str,
+        data_folder: str | Path | None = None,
+        tile_type: DatasetType | None = None,
+    ) -> "TileManager":
         """Initialize the TileManager from the official overview CSV file like
         `dop_nw.csv` or `3dm_nw.csv`
 
@@ -71,14 +147,22 @@ class TileManager:
 
         tile_info = tile_info[["tile_name"] + cls.extent_columns]
 
-        return cls(tile_info)
+        return cls(tile_info, data_folder=data_folder, tile_type=tile_type)
 
     @classmethod
-    def from_html_extraction_result(cls, fp: str):
+    def from_html_extraction_result(
+        cls,
+        fp: str,
+        data_folder: str | Path | None = None,
+        tile_type: DatasetType | None = None,
+    ):
         """Read tile information from the HTML extraction result file created by
         the `scripts/extract_html_table.py` script.
 
-        E.g. `Strahlungsenergie-NRW-KWh-Yr-Shd-50cm-V23_32280_5648_4.tif` -> 280, 5648, 4
+        E.g.
+        - `Strahlungsenergie-NRW-KWh-Yr-Shd-50cm-V23_32280_5648_4.tif` -> 280, 5648, 4
+        - `dop10rgbi_32_32280_5648_4_nw_2024.tif` -> 280, 5648, 4
+
         Note, that the leading 32 in 32280 should be separated with "_", probably
         an error in the naming of the data.
 
@@ -88,28 +172,34 @@ class TileManager:
         tile_info = pd.read_csv(fp, sep=",")
         tile_info["tile_name"] = tile_info["File"]
 
-        extent_list = list()
-
-        for name in tile_info["tile_name"]:
-            # remove file ending
-            name = name.split(".")[0]
-
-            name_split = name.split("_")
-
-            first_part = name_split[1]
-            min_x = int(first_part.replace("32", "")) * 1000
-            min_y = int(name_split[2]) * 1000
-            extent = int(name_split[3]) * 1000
-
-            extent_list.append(
-                {"min_x": min_x, "min_y": min_y, "extent": extent}
+        if tile_type == DatasetType.AERIAL_IMAGE:
+            tile_extent = (
+                tile_info["tile_name"]
+                .str.split("_", expand=True)
+                .loc[:, 2:4]
+                .astype(int)
+                * 1000  # for km to m
             )
+        else:
+            # Extract extent for other types
+            extent_list = list()
+            for name in tile_info["tile_name"]:
+                # remove file ending
+                name = name.split(".")[0]
+                name_split = name.split("_")
+                first_part = name_split[1]
+                min_x = int(first_part.replace("32", "")) * 1000
+                min_y = int(name_split[2]) * 1000
+                extent = int(name_split[3]) * 1000
+                extent_list.append(
+                    {"min_x": min_x, "min_y": min_y, "extent": extent}
+                )
+            tile_extent = pd.DataFrame(extent_list)
 
-        extent_df = pd.DataFrame(extent_list)
-        tile_info = pd.concat([tile_info, extent_df], axis=1)
-        tile_info = tile_info[["tile_name"] + cls.extent_columns]
+        tile_extent.columns = cls.extent_columns
+        tile_info = pd.concat([tile_info, tile_extent], axis=1)
 
-        return cls(tile_info)
+        return cls(tile_info, data_folder=data_folder, tile_type=tile_type)
 
 
 def get_bounding_box_from_tile_name(
@@ -131,3 +221,16 @@ def get_bounding_box_from_tile_name(
     y_m = y_km * 1000
     extent_m = extent_km * 1000
     return (x_m, y_m, x_m + extent_m, y_m + extent_m)
+
+
+def download_file(url: str, local_filename: str):
+    # NOTE the stream=True parameter below
+    with requests.get(url, stream=True) as r:
+        r.raise_for_status()
+        with open(local_filename, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                # If you have chunk encoded response uncomment if
+                # and set chunk_size parameter to None.
+                # if chunk:
+                f.write(chunk)
+    return local_filename

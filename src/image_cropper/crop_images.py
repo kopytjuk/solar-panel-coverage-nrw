@@ -9,6 +9,7 @@ import shapely
 from tqdm import tqdm
 
 from utils import TileManager, transform_wgs84_to_utm32N_geometry
+from utils.opengeodata_nrw import DatasetType
 
 
 def crop_images_from_buildings(
@@ -18,15 +19,14 @@ def crop_images_from_buildings(
     output_location.mkdir(parents=True, exist_ok=True)
 
     buildings = gpd.read_file(buildings_gpkg_path)
-    print(buildings.head())
 
-    manager_aerial_images = TileManager.from_tile_file(
-        "data/tile-info/dop_nw.csv"
+    manager_aerial_images = TileManager.from_html_extraction_result(
+        "data/aerial_images.csv",
+        data_folder=image_data_location,
+        tile_type=DatasetType.AERIAL_IMAGE,
     )
 
     overview_data = list()
-
-    # buildings = buildings.iloc[100:110]
 
     for _, building in tqdm(buildings.iterrows(), total=len(buildings)):
         building_id = building["building_id"]
@@ -37,10 +37,12 @@ def crop_images_from_buildings(
         )
         building_geometry_centroid = building_polygon.centroid
 
-        tile_name = manager_aerial_images.get_tile_name_from_point(
-            building_geometry_centroid.x, building_geometry_centroid.y
+        tile_filename = manager_aerial_images.get_tile_name_from_point(
+            building_geometry_centroid.x,
+            building_geometry_centroid.y,
+            with_extension=True,
         )
-        tile_file_path = f"{image_data_location}/{tile_name}.jp2"
+        tile_file_path = f"{image_data_location}/{tile_filename}"
 
         with rasterio.open(tile_file_path) as image_data:
             affine_transform_px_to_geo = image_data.transform

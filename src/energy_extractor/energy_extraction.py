@@ -7,6 +7,7 @@ import rasterio
 from rasterio.features import rasterize
 from tqdm import tqdm
 
+from utils.opengeodata_nrw import DatasetType
 from utils.tile_management import TileManager
 from utils.transform import transform_wgs84_to_utm32N_geometry
 
@@ -15,10 +16,11 @@ def extract_energy_from_buildings(
     buildings_file: str, energy_data_location: str
 ) -> pd.DataFrame:
     buildings = gpd.read_file(buildings_file)
-    print(buildings.head())
 
     tile_manager_energy = TileManager.from_html_extraction_result(
-        "data/Strahlungsenergie-0.5x0.5.csv"
+        "data/Strahlungsenergie-0.5x0.5.csv",
+        data_folder=energy_data_location,
+        tile_type=DatasetType.ENERGY_YIELD_50CM,
     )
 
     energy_stats = []
@@ -33,7 +35,9 @@ def extract_energy_from_buildings(
         )
 
         energy_map_filename = tile_manager_energy.get_tile_name_from_point(
-            building_polygon_utm.centroid.x, building_polygon_utm.centroid.y
+            building_polygon_utm.centroid.x,
+            building_polygon_utm.centroid.y,
+            with_extension=True,
         )
         energy_filepath = os.path.join(
             energy_data_location, energy_map_filename

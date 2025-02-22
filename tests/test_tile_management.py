@@ -2,6 +2,7 @@ from io import StringIO
 
 import pytest
 
+from utils.opengeodata_nrw import DatasetType
 from utils.tile_management import TileManager
 
 # Sample CSV data for testing
@@ -23,7 +24,9 @@ dop10rgbi_32_384_5619_1_nw_2023;0;2023-03-01;1404/23;DMCIII-27532_DMCIII;10;RGBI
 def tile_manager():
     # Use StringIO to simulate a file-like object containing the CSV data
     tile_overview_path = StringIO(CSV_DATA)
-    return TileManager.from_tile_file(tile_overview_path)
+    return TileManager.from_tile_file(
+        tile_overview_path, tile_type=DatasetType.AERIAL_IMAGE
+    )
 
 
 def test_get_tile_name_from_point(tile_manager):
