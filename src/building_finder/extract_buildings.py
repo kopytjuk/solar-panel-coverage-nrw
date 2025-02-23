@@ -10,9 +10,7 @@ from utils import (
 )
 
 
-def extract_buildings(
-    tile_name: str, output_location: str, with_address: bool = False
-):
+def extract_buildings(tile_name: str, output_location: str, with_address: bool = False):
     output_location = Path(output_location)
 
     # Clear output location if it exists
@@ -31,6 +29,9 @@ def extract_buildings(
     buildings_from_bbox = get_buildings_from_bbox(
         bbox_extent_wgs84.bounds, with_address=with_address
     )
+
+    # Compute the area for all geometries and store it in a column
+    buildings_from_bbox["area"] = buildings_from_bbox.geometry.area
 
     if len(buildings_from_bbox) == 0:
         return
