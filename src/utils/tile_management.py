@@ -1,8 +1,10 @@
 from pathlib import Path
 from urllib.parse import urljoin
 
+import geopandas as gpd
 import pandas as pd
 import requests
+import shapely
 
 from utils.opengeodata_nrw import (
     DOWNLOAD_BASE_URL,
@@ -27,16 +29,25 @@ class TileManager:
             tile_info (pd.DataFrame): dataframe with
                 columns `tile_name`, `min_x`, `min_y`, `extent`
         """
+
+        # extract the geometries
+        tile_geometries = [
+            shapely.box(
+                row["min_x"],
+                row["min_y"],
+                row["min_x"] + row["extent"],
+                row["min_y"] + row["extent"],
+            )
+            for _, row in tile_info.iterrows()
+        ]
+        tile_info = gpd.GeoDataFrame(tile_info, geometry=tile_geometries)
+
         self.tile_info = tile_info
 
-        self._data_folder = (
-            Path(data_folder) if isinstance(data_folder, str) else data_folder
-        )
+        self._data_folder = Path(data_folder) if isinstance(data_folder, str) else data_folder
         self._tile_type = tile_type
 
-    def get_tile_name_from_point(
-        self, x: float, y: float, with_extension: bool = False
-    ) -> str:
+    def get_tile_name_from_point(self, x: float, y: float, with_extension: bool = False) -> str:
         """Get the tile name for a given point
 
         Args:
@@ -46,23 +57,21 @@ class TileManager:
         Returns:
             str: tile name
         """
+
+        pt = shapely.Point(x, y)
+
         # filter tiles that contain the point
-        mask = (
-            (self.tile_info["min_x"] <= x)
-            & (self.tile_info["min_y"] <= y)
-            & ((self.tile_info["min_x"] + self.tile_info["extent"]) > x)
-            & ((self.tile_info["min_y"] + self.tile_info["extent"]) > y)
-        )
+        mask = self.tile_info.geometry.intersects(pt)
 
-        tile = self.tile_info[mask]
+        tiles = self.tile_info[mask]
 
-        if tile.empty:
+        if tiles.empty:
             raise ValueError(f"No tile found for point ({x}, {y})")
 
-        if tile.shape[0] > 1:
-            raise ValueError(f"Multiple tiles found for point ({x}, {y})")
+        if tiles.shape[0] > 1:
+            raise ValueError(f"Multiple tiles found for point ({x}, {y}), should not happen!")
 
-        tile_name = tile["tile_name"].iloc[0]
+        tile_name = tiles["tile_name"].iloc[0]
 
         extension = FILE_EXTENSIONS[self._tile_type]
 
@@ -73,6 +82,29 @@ class TileManager:
             return f"{tile_name}.{extension}"
         else:
             return tile_name
+
+    def get_tiles_intersecting(self, polygon: shapely.Polygon) -> list[str]:
+        """Get the tile names that intersect with a given polygon
+
+        Args:
+            polygon (shapely.Polygon): polygon of interset (UTM32N)
+
+        Raises:
+            ValueError: in case no tiles can be found
+
+        Returns:
+            list[str]: list of tiles
+        """
+
+        # filter tiles that contain the point
+        mask = self.tile_info.geometry.intersects(polygon)
+
+        tiles = self.tile_info[mask]
+
+        if tiles.empty:
+            raise ValueError("No tile found for input polygon")
+
+        return tiles["tile_name"].tolist()
 
     def check_if_tile_exists(self, tile_name: str) -> bool:
         """Check if a tile exists in the data folder
@@ -136,10 +168,7 @@ class TileManager:
         # the x, y and extent in km, e.g.:
         # dop10rgbi_32_478_5740_1_nw_2024 -> 478, 5740, 1
         tile_extent = (
-            tile_info["tile_name"]
-            .str.split("_", expand=True)
-            .loc[:, 2:4]
-            .astype(int)
+            tile_info["tile_name"].str.split("_", expand=True).loc[:, 2:4].astype(int)
             * 1000  # for km to m
         )
         tile_extent.columns = cls.extent_columns
@@ -174,10 +203,7 @@ class TileManager:
 
         if tile_type == DatasetType.AERIAL_IMAGE:
             tile_extent = (
-                tile_info["tile_name"]
-                .str.split("_", expand=True)
-                .loc[:, 2:4]
-                .astype(int)
+                tile_info["tile_name"].str.split("_", expand=True).loc[:, 2:4].astype(int)
                 * 1000  # for km to m
             )
         else:
@@ -191,9 +217,7 @@ class TileManager:
                 min_x = int(first_part.replace("32", "")) * 1000
                 min_y = int(name_split[2]) * 1000
                 extent = int(name_split[3]) * 1000
-                extent_list.append(
-                    {"min_x": min_x, "min_y": min_y, "extent": extent}
-                )
+                extent_list.append({"min_x": min_x, "min_y": min_y, "extent": extent})
             tile_extent = pd.DataFrame(extent_list)
 
         tile_extent.columns = cls.extent_columns
