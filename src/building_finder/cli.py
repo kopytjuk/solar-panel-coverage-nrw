@@ -3,6 +3,9 @@ from pathlib import Path
 import click
 
 from building_finder.extract_buildings import extract_buildings
+from utils.logging import get_client_logger
+
+logger = get_client_logger()
 
 
 @click.command()
@@ -29,6 +32,7 @@ def building_finder_cli(
         output_location,
         with_address=with_address_only,
     )
+    logger.info("Building finder complete!")
 
 
 if __name__ == "__main__":

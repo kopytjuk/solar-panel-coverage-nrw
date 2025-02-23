@@ -3,6 +3,9 @@ from pathlib import Path
 import click
 
 from image_cropper.crop_images import crop_images_from_buildings
+from utils.logging import get_client_logger
+
+logger = get_client_logger()
 
 
 @click.command()
@@ -16,9 +19,8 @@ def image_cropper_cli(buildings_file: str, output_folder: str):
     output_folder.mkdir(parents=True, exist_ok=True)
 
     image_data_location = "data"
-    crop_images_from_buildings(
-        buildings_file, image_data_location, output_folder
-    )
+    crop_images_from_buildings(buildings_file, image_data_location, output_folder)
+    logger.info("Processing complete!")
 
 
 if __name__ == "__main__":

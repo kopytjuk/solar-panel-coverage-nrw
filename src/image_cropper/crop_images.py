@@ -9,7 +9,10 @@ import shapely
 from tqdm import tqdm
 
 from utils import TileManager, transform_wgs84_to_utm32N_geometry
+from utils.logging import get_library_logger
 from utils.opengeodata_nrw import DatasetType
+
+logger = get_library_logger(__name__)
 
 
 def crop_images_from_buildings(
@@ -32,16 +35,23 @@ def crop_images_from_buildings(
         building_id = building["building_id"]
         building_gps_polygon = building["geometry"]
 
-        building_polygon = transform_wgs84_to_utm32N_geometry(
-            building_gps_polygon
-        )
+        building_polygon = transform_wgs84_to_utm32N_geometry(building_gps_polygon)
         building_geometry_centroid = building_polygon.centroid
 
-        tile_filename = manager_aerial_images.get_tile_name_from_point(
+        tile_name = manager_aerial_images.get_tile_name_from_point(
             building_geometry_centroid.x,
             building_geometry_centroid.y,
-            with_extension=True,
+            with_extension=False,
         )
+
+        if not manager_aerial_images.check_if_tile_exists(tile_name):
+            logger.info(f"Downloading tile data for {tile_name}")
+            manager_aerial_images.download_tile(tile_name)
+            logger.info("Download complete!")
+
+        file_extension = manager_aerial_images.file_extension
+        tile_filename = f"{tile_name}.{file_extension}"
+
         tile_file_path = f"{image_data_location}/{tile_filename}"
 
         with rasterio.open(tile_file_path) as image_data:
@@ -71,9 +81,7 @@ def crop_images_from_buildings(
 
             affine_transform_geo_to_px = ~affine_transform_px_to_geo
 
-            affine_transform_for_shapely = (
-                affine_transform_geo_to_px.to_shapely()
-            )
+            affine_transform_for_shapely = affine_transform_geo_to_px.to_shapely()
 
             # polygon in pixel coordinates of the full tile
             building_polygon_px = shapely.affinity.affine_transform(

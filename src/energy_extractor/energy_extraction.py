@@ -7,9 +7,12 @@ import rasterio
 from rasterio.features import rasterize
 from tqdm import tqdm
 
+from utils.logging import get_library_logger
 from utils.opengeodata_nrw import DatasetType
 from utils.tile_management import TileManager
 from utils.transform import transform_wgs84_to_utm32N_geometry
+
+logger = get_library_logger(__name__)
 
 
 def extract_energy_from_buildings(buildings_file: str, energy_data_location: str) -> pd.DataFrame:
@@ -30,11 +33,20 @@ def extract_energy_from_buildings(buildings_file: str, energy_data_location: str
 
         building_polygon_utm = transform_wgs84_to_utm32N_geometry(building_gps_polygon)
 
-        energy_map_filename = tile_manager_energy.get_tile_name_from_point(
+        tile_name = tile_manager_energy.get_tile_name_from_point(
             building_polygon_utm.centroid.x,
             building_polygon_utm.centroid.y,
-            with_extension=True,
+            with_extension=False,
         )
+
+        if not tile_manager_energy.check_if_tile_exists(tile_name):
+            logger.info(f"Downloading tile data for {tile_name}")
+            tile_manager_energy.download_tile(tile_name)
+            logger.info("Download complete!")
+
+        file_extension = tile_manager_energy.file_extension
+        energy_map_filename = f"{tile_name}.{file_extension}"
+
         energy_filepath = os.path.join(energy_data_location, energy_map_filename)
 
         with rasterio.open(energy_filepath) as energy_file:

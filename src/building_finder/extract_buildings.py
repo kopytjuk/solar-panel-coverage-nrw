@@ -7,7 +7,11 @@ from utils import (
     get_bounding_box_from_tile_name,
     get_buildings_from_bbox,
     transform_utm32N_to_wgs84_geometry,
+    transform_wgs84_to_utm32N_geometry,
 )
+from utils.logging import get_library_logger
+
+logger = get_library_logger(__name__)
 
 
 def extract_buildings(tile_name: str, output_location: str, with_address: bool = False):
@@ -30,8 +34,14 @@ def extract_buildings(tile_name: str, output_location: str, with_address: bool =
         bbox_extent_wgs84.bounds, with_address=with_address
     )
 
+    logger.info(f"Found {len(buildings_from_bbox)} buildings in the bounding box!")
+
     # Compute the area for all geometries and store it in a column
-    buildings_from_bbox["area"] = buildings_from_bbox.geometry.area
+    # the area computation is done in UTM32N (m²)
+    area_arr = [
+        transform_wgs84_to_utm32N_geometry(geom).area for geom in buildings_from_bbox.geometry
+    ]
+    buildings_from_bbox["area"] = area_arr
 
     if len(buildings_from_bbox) == 0:
         return

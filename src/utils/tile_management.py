@@ -83,6 +83,10 @@ class TileManager:
         else:
             return tile_name
 
+    @property
+    def file_extension(self) -> str:
+        return FILE_EXTENSIONS[self._tile_type]
+
     def get_tiles_intersecting(self, polygon: shapely.Polygon) -> list[str]:
         """Get the tile names that intersect with a given polygon
 
@@ -214,10 +218,14 @@ class TileManager:
                 name = name.split(".")[0]
                 name_split = name.split("_")
                 first_part = name_split[1]
-                min_x = int(first_part.replace("32", "")) * 1000
+
+                # remove the leading "32"
+                first_part = first_part[2:]
+                min_x = int(first_part) * 1000
                 min_y = int(name_split[2]) * 1000
                 extent = int(name_split[3]) * 1000
                 extent_list.append({"min_x": min_x, "min_y": min_y, "extent": extent})
+
             tile_extent = pd.DataFrame(extent_list)
 
         tile_extent.columns = cls.extent_columns

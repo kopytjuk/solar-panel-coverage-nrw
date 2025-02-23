@@ -1,14 +1,14 @@
 import logging
 
 
-def get_client_logger(name: str | None = None) -> logging.Logger:
+def get_client_logger(name: str | None = None, level: int = logging.INFO) -> logging.Logger:
     # create logger
     logger = logging.getLogger(name)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(level)
 
     # create console handler and set level to debug
     ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
+    ch.setLevel(level)
 
     # create formatter
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
