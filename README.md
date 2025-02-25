@@ -13,3 +13,17 @@ Determine the solar roof coverage in North Rhine Westphalia (NRW) using [OpenGeo
 ```
 source ./scripts/run_full_pipeline.sh
 ```
+
+## Hello world Docker
+
+1. Build the Docker image:
+
+```bash
+docker build -t hello-world-python .
+```
+
+2. Run the Docker container:
+
+```bash
+docker run hello-world-python
+```
