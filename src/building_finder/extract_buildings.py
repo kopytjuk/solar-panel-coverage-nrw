@@ -6,8 +6,8 @@ from shapely.geometry import box
 from utils import (
     get_bounding_box_from_tile_name,
     get_buildings_from_bbox,
-    transform_utm32N_to_wgs84_geometry,
-    transform_wgs84_to_utm32N_geometry,
+    transform_utm32N_to_wgs84,
+    transform_wgs84_to_utm32N,
 )
 from utils.logging import get_library_logger
 
@@ -27,7 +27,7 @@ def extract_buildings(tile_name: str, output_location: str, with_address: bool =
     bbox_extent_utm = box(*bbox_extent)
 
     # Transform bounding box to WGS84
-    bbox_extent_wgs84 = transform_utm32N_to_wgs84_geometry(bbox_extent_utm)
+    bbox_extent_wgs84 = transform_utm32N_to_wgs84(bbox_extent_utm)
 
     # Retrieve buildings from OSM within the bounding box
     buildings_from_bbox = get_buildings_from_bbox(
@@ -38,9 +38,7 @@ def extract_buildings(tile_name: str, output_location: str, with_address: bool =
 
     # Compute the area for all geometries and store it in a column
     # the area computation is done in UTM32N (m²)
-    area_arr = [
-        transform_wgs84_to_utm32N_geometry(geom).area for geom in buildings_from_bbox.geometry
-    ]
+    area_arr = [transform_wgs84_to_utm32N(geom).area for geom in buildings_from_bbox.geometry]
     buildings_from_bbox["area"] = area_arr
 
     if len(buildings_from_bbox) == 0:

@@ -10,7 +10,7 @@ from tqdm import tqdm
 from utils.logging import get_library_logger
 from utils.opengeodata_nrw import DatasetType
 from utils.tile_management import TileManager
-from utils.transform import transform_wgs84_to_utm32N_geometry
+from utils.transform import transform_wgs84_to_utm32N
 
 logger = get_library_logger(__name__)
 
@@ -31,7 +31,7 @@ def extract_energy_from_buildings(buildings_file: str, energy_data_location: str
         building_id = building["building_id"]
         building_gps_polygon = building["geometry"]
 
-        building_polygon_utm = transform_wgs84_to_utm32N_geometry(building_gps_polygon)
+        building_polygon_utm = transform_wgs84_to_utm32N(building_gps_polygon)
 
         tile_name = tile_manager_energy.get_tile_name_from_point(
             building_polygon_utm.centroid.x,
@@ -75,13 +75,19 @@ def extract_energy_from_buildings(buildings_file: str, energy_data_location: str
                 energy_data = np.zeros((2, 2))
 
             energy_data[energy_data == no_data_value] = (
-                0  # we assume the energy output is 0kWh for this pixel
+                0  # we assume the energy output is 0kWh/m^2 for this pixel
             )
+
+            # one pixel is 0.5m x 0.5m and holds the energy output in kWh/m^2
+            pixel_area = 0.5 * 0.5
+
+            # we sum up the energy output for each pixel
+            total_energy_yield = energy_data.sum() * pixel_area
 
             energy_stats.append(
                 {
                     "building_id": building_id,
-                    "energy_sum_kWh": energy_data.sum(),
+                    "annual_energy_yield_kWh": total_energy_yield,
                 }
             )
 

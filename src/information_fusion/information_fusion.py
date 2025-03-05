@@ -60,7 +60,7 @@ def combine_information(
         merged_df.groupby("building_id")
         .agg(
             {
-                "energy_sum_kWh": "min",
+                "annual_energy_yield_kWh": "min",
                 "solar_panel_installed": "min",
                 "detections_area_m2": "sum",
             }

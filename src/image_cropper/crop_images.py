@@ -8,7 +8,7 @@ import rasterio
 import shapely
 from tqdm import tqdm
 
-from utils import TileManager, transform_wgs84_to_utm32N_geometry
+from utils import TileManager, transform_wgs84_to_utm32N
 from utils.logging import get_library_logger
 from utils.opengeodata_nrw import DatasetType
 
@@ -35,7 +35,7 @@ def crop_images_from_buildings(
         building_id = building["building_id"]
         building_gps_polygon = building["geometry"]
 
-        building_polygon = transform_wgs84_to_utm32N_geometry(building_gps_polygon)
+        building_polygon = transform_wgs84_to_utm32N(building_gps_polygon)
         building_geometry_centroid = building_polygon.centroid
 
         tile_name = manager_aerial_images.get_tile_name_from_point(
@@ -59,10 +59,10 @@ def crop_images_from_buildings(
 
             res_x, res_y = image_data.res
 
-            building_buffered_box = building_polygon.envelope.buffer(5.0)
+            bounding_box = create_squared_box_around(building_polygon, margin_around_building=5.0)
 
             crop_window = rasterio.windows.from_bounds(
-                *building_buffered_box.bounds,
+                *bounding_box.bounds,
                 transform=affine_transform_px_to_geo,
             )
 
@@ -79,8 +79,10 @@ def crop_images_from_buildings(
                 dpi=200,
             )
 
+            # invert
             affine_transform_geo_to_px = ~affine_transform_px_to_geo
 
+            # convert to a structure used by shapely
             affine_transform_for_shapely = affine_transform_geo_to_px.to_shapely()
 
             # polygon in pixel coordinates of the full tile
@@ -114,3 +116,40 @@ def crop_images_from_buildings(
 
     overview_df = pd.DataFrame(overview_data)
     overview_df.to_csv(output_location / "overview.csv", index=False)
+
+
+def create_squared_box_around(
+    building_polygon: shapely.Polygon, margin_around_building: float = 5.0
+) -> shapely.Polygon:
+    """Create a squared bounding box around a building outline polygon.
+
+    Args:
+        building_polygon (shapely.Polygon): building outline
+        margin_around_building (float, optional): Margin in meters. Defaults to 5.0.
+
+    Returns:
+        shapely.Polygon: squared bounding box
+    """
+    building_polygon_with_margin = building_polygon.buffer(margin_around_building)
+
+    building_buffered_box = building_polygon_with_margin.envelope
+
+    # Calculate the maximum dimension (width or height) of the rectangle
+    width = building_buffered_box.bounds[2] - building_buffered_box.bounds[0]
+    height = building_buffered_box.bounds[3] - building_buffered_box.bounds[1]
+    max_dimension = max(width, height)
+
+    # Determine the centroid of the original rectangle
+    centroid = building_buffered_box.centroid
+
+    half_side = max_dimension / 2
+    buffered_box_square = shapely.Polygon(
+        [
+            (centroid.x - half_side, centroid.y - half_side),
+            (centroid.x + half_side, centroid.y - half_side),
+            (centroid.x + half_side, centroid.y + half_side),
+            (centroid.x - half_side, centroid.y + half_side),
+        ]
+    )
+
+    return buffered_box_square

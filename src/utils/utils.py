@@ -37,9 +37,7 @@ def get_buildings_from_bbox(
     if with_address:
         buildings_gdf = buildings_gdf[buildings_gdf["addr:street"].notnull()]
 
-    buildings_gdf[uid_column_name] = buildings_gdf.apply(
-        lambda _: str(uuid.uuid4()), axis=1
-    )
+    buildings_gdf[uid_column_name] = buildings_gdf.apply(lambda _: str(uuid.uuid4()), axis=1)
 
     buildings_gdf = buildings_gdf.set_index(uid_column_name)
 
