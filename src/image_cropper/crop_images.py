@@ -71,6 +71,11 @@ def crop_images_from_buildings(
             image_matrix = image_matrix[:3, ...]
             image_matrix = np.moveaxis(image_matrix, 0, -1)
 
+            # crop window is partly outside the image
+            if image_matrix.shape[0] != image_matrix.shape[1]:
+                # TODO: logic to combine data from neighboring tiles
+                continue
+
             building_image_filename = f"{building_id}.png"
 
             plt.imsave(
