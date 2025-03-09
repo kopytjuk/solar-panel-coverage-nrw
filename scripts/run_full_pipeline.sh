@@ -4,16 +4,13 @@
 TILES=("318_5652_1")
 # TILES=("318_5652_1" "318_5653_1" "318_5654_1" "319_5652_1" "319_5653_1" "319_5654_1" "320_5652_1" "320_5653_1" "320_5654_1")
 
+SEGMENTATION_THRESHOLD=0.8
 
 MAIN_REPO_FOLDER=$(pwd)
 SOLAR_PANEL_DETECTOR_REPO_FOLDER="/Users/kopytjuk/Code/solar-panel-segmentation"
 
 OUTPUT_MAIN_FOLDER=/Users/kopytjuk/Data/roof-analysis/Titz/
 
-
-poetry_activate() {
-    source $(poetry env info --path)/bin/activate
-}
 
 # to allow deletions in ZSH
 setopt localoptions rmstarsilent
@@ -64,7 +61,8 @@ for TILE in "${TILES[@]}"; do
     cd $MAIN_REPO_FOLDER
 
     echo "----- Determine the energy yield -----"
-    poetry run energy-extractor "$TILE_RESULT_FOLDER/buildings_general_info.gpkg" $CROPPED_IMAGES_FOLDER $SEGMENTATION_MASK_FOLDER "$TILE_RESULT_FOLDER/energy_yield.csv" \
+    poetry run energy-extractor "$TILE_RESULT_FOLDER/buildings_general_info.gpkg" $CROPPED_IMAGES_FOLDER $SEGMENTATION_MASK_FOLDER \
+        "$TILE_RESULT_FOLDER/energy_yield.csv" --segmentation-threshold $SEGMENTATION_THRESHOLD \
         || { echo "energy-extractor failed for tile $TILE. Skipping to next tile."; rm -rf $TILE_RESULT_FOLDER; continue; }
 
     
