@@ -15,15 +15,21 @@ logger = get_client_logger()
     "segmentation_result_folder", type=click.Path(exists=True, dir_okay=True, file_okay=False)
 )
 @click.argument("result_file", type=click.Path(exists=False))
+@click.option("-st", "--segmentation-threshold", default=0.8, type=click.FLOAT)
 def energy_extractor_cli(
     buildings_file: str,
     cropped_images_folder: str,
     segmentation_result_folder: str,
     result_file: str,
+    segmentation_threshold: float,
 ):
     energy_data_location = "data"
     energy_info = extract_energy_from_buildings(
-        buildings_file, cropped_images_folder, segmentation_result_folder, energy_data_location
+        buildings_file,
+        cropped_images_folder,
+        segmentation_result_folder,
+        energy_data_location,
+        segmentation_threshold=segmentation_threshold,
     )
     energy_info.to_csv(result_file)
 

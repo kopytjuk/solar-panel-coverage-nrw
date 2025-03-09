@@ -37,6 +37,8 @@ def extract_energy_from_buildings(
     cropped_images_folder: str,
     segmentation_output_folder: str,
     energy_data_location: str,
+    *,
+    segmentation_threshold: float,
 ) -> pd.DataFrame:
     buildings = gpd.read_file(buildings_file)
 
@@ -60,6 +62,10 @@ def extract_energy_from_buildings(
     for _, building in tqdm(buildings.iterrows(), total=len(buildings)):
         building_id = building["building_id"]
         building_wgs84_polygon = building["geometry"]
+
+        # skipped, in case image cropping did not work
+        if building_id not in cropped_images_overview.index:
+            continue
 
         crop_image_info = cropped_images_overview.loc[building_id]
         cropped_transform_px_to_geo = make_tuple(crop_image_info["transform_px_to_geo"])
@@ -133,8 +139,7 @@ def extract_energy_from_buildings(
             solar_panel_segmentation_arr = np.array(solar_panel_segmentation_image, copy=True)
             solar_panel_segmentation_arr = solar_panel_segmentation_arr / 255
 
-            threshold = 0.8
-            solar_panel_existence_mask = solar_panel_segmentation_arr > threshold
+            solar_panel_existence_mask = solar_panel_segmentation_arr > segmentation_threshold
 
             # keep only pixel within the building
             solar_panel_existence_mask = np.where(

@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import click
@@ -6,6 +7,8 @@ from building_finder.extract_buildings import extract_buildings
 from utils.logging import get_client_logger
 
 logger = get_client_logger()
+
+logging.getLogger("pyogrio").setLevel(logging.WARNING)
 
 
 @click.command()

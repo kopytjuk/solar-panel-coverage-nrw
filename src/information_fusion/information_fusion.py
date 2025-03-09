@@ -31,38 +31,15 @@ def combine_information(
 
     energy_yield = pd.read_csv(result_folder / "energy_yield.csv")
 
-    solar_panel_detections = pd.read_csv(result_folder / "solar_panel_detections.csv")
-    logger.info("Loaded solar_panel_detections.csv")
-
-    solar_panel_detections = solar_panel_detections.rename(
-        columns=lambda x: "detections_" + x if x != "building_id" else x
-    )
-    logger.info("Renamed columns in solar_panel_detections")
-
-    solar_panel_detections = solar_panel_detections[
-        solar_panel_detections["detections_confidence"] > confidence_threshold
-    ]
-    logger.info(
-        f"Filtered solar_panel_detections by confidence (threshold: {confidence_threshold:.2f})",
-    )
-
     # Merge buildings and energy_yield dataframes
     merged_df = buildings.merge(energy_yield, on="building_id", how="left")
-
-    # Merge the result with solar_panel_detections dataframe
-    merged_df = merged_df.merge(solar_panel_detections, on="building_id", how="left")
-
-    # Buildings, which have no detections have `NA`s in columns corresponding to detections
-    # leading to a False after the `notnull()` operation
-    merged_df["solar_panel_installed"] = merged_df["detections_confidence"].notnull()
 
     final_df = (
         merged_df.groupby("building_id")
         .agg(
             {
-                "annual_energy_yield_kWh": "min",
-                "solar_panel_installed": "min",
-                "detections_area_m2": "sum",
+                "actual_energy_yield_kWh": "min",
+                "potential_energy_yield_kWh": "min",
             }
         )
         .reset_index(drop=False)
