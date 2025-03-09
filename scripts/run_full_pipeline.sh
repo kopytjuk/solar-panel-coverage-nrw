@@ -1,8 +1,8 @@
 #!/bin/zsh
 
 # ---- CONFIGURATION START ----
-TILES=("318_5652_1")
-# TILES=("318_5652_1" "318_5653_1" "318_5654_1" "319_5652_1" "319_5653_1" "319_5654_1" "320_5652_1" "320_5653_1" "320_5654_1")
+# TILES=("318_5653_1")
+TILES=("318_5652_1" "318_5653_1" "318_5654_1" "319_5652_1" "319_5653_1" "319_5654_1" "320_5652_1" "320_5653_1" "320_5654_1")
 
 SEGMENTATION_THRESHOLD=0.8
 
@@ -47,7 +47,8 @@ for TILE in "${TILES[@]}"; do
 
     CROPPED_IMAGES_FOLDER="$IMAGES_AND_MASKS_PARENT_FOLDER/raw/"
     mkdir -p $CROPPED_IMAGES_FOLDER
-    poetry run image-cropper "$TILE_RESULT_FOLDER/buildings_general_info.gpkg" $CROPPED_IMAGES_FOLDER
+    poetry run image-cropper "$TILE_RESULT_FOLDER/buildings_general_info.gpkg" $CROPPED_IMAGES_FOLDER \
+        || { echo "Image-cropping failed for tile $TILE. Skipping to next tile."; rm -rf $TILE_RESULT_FOLDER; continue; }
 
     echo "----- Detect solar panels from images -----"
 
@@ -62,12 +63,11 @@ for TILE in "${TILES[@]}"; do
 
     echo "----- Determine the energy yield -----"
     poetry run energy-extractor "$TILE_RESULT_FOLDER/buildings_general_info.gpkg" $CROPPED_IMAGES_FOLDER $SEGMENTATION_MASK_FOLDER \
-        "$TILE_RESULT_FOLDER/energy_yield.csv" --segmentation-threshold $SEGMENTATION_THRESHOLD \
-        || { echo "energy-extractor failed for tile $TILE. Skipping to next tile."; rm -rf $TILE_RESULT_FOLDER; continue; }
+        "$TILE_RESULT_FOLDER/energy_yield.csv" --segmentation-threshold $SEGMENTATION_THRESHOLD
 
     
-    # combine all the data
-    # poetry run combine-results $TILE_RESULT_FOLDER "$TILE_RESULT_FOLDER/final.gpkg"
+    echo "----- Combine information -----"
+    poetry run combine-results $TILE_RESULT_FOLDER "$TILE_RESULT_FOLDER/final.gpkg"
 
     echo "Done with tile $TILE!"
 
