@@ -1,11 +1,14 @@
 from pathlib import Path
 
+import affine
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import rasterio
+import rasterio.windows
 import shapely
+from rasterio.windows import transform as window_transform
 from tqdm import tqdm
 
 from utils import TileManager, transform_wgs84_to_utm32N
@@ -57,7 +60,7 @@ def crop_images_from_buildings(
         with rasterio.open(tile_file_path) as image_data:
             affine_transform_px_to_geo = image_data.transform
 
-            res_x, res_y = image_data.res
+            # res_x, res_y = image_data.res
 
             bounding_box = create_squared_box_around(building_polygon, margin_around_building=5.0)
 
@@ -84,22 +87,6 @@ def crop_images_from_buildings(
                 dpi=200,
             )
 
-            # invert
-            affine_transform_geo_to_px = ~affine_transform_px_to_geo
-
-            # convert to a structure used by shapely
-            affine_transform_for_shapely = affine_transform_geo_to_px.to_shapely()
-
-            # polygon in pixel coordinates of the full tile
-            building_polygon_px = shapely.affinity.affine_transform(
-                building_polygon, affine_transform_for_shapely
-            )
-
-            # polygon in the pixel coordinates of the cropped image
-            building_polygon_px_image = shapely.affinity.translate(
-                building_polygon_px, -crop_window.col_off, -crop_window.row_off
-            )
-
             # # uncomment for DEBUG
             # img = Image.fromarray(image_matrix)
             # d = ImageDraw.Draw(img)
@@ -108,19 +95,46 @@ def crop_images_from_buildings(
             # )
             # img.show()
 
+        transform_cropped_px_to_geo = window_transform(
+            crop_window, affine_transform_px_to_geo
+        ).to_shapely()
+        transform_cropped_px_to_geo_arr = np.array(transform_cropped_px_to_geo)
+
         overview_data.append(
             {
                 "building_id": building_id,
                 "image_filename": building_image_filename,
-                "geometry_wkt": building_polygon.wkt,
-                "geometry_px_wkt": building_polygon_px_image.wkt,
-                "res_x_px": res_x,  # pixel resolution in x direction in [m]
-                "res_y_px": res_y,  # pixel resolution in y direction in [m]
+                "image_shape_width": image_matrix.shape[1],
+                "image_shape_height": image_matrix.shape[0],
+                "transform_px_to_geo": tuple(transform_cropped_px_to_geo_arr.tolist()),
             }
         )
 
     overview_df = pd.DataFrame(overview_data)
     overview_df.to_csv(output_location / "overview.csv", index=False)
+
+
+def create_transform_for_cropped_image(
+    affine_transform_px_to_geo: affine.Affine, crop_window: rasterio.windows.Window
+) -> tuple[float]:
+    """_summary_
+
+    Args:
+        affine_transform_px_to_geo (_type_): _description_
+        crop_window (_type_): _description_
+
+    Returns:
+        tuple[float]: Shapely affine transformation format
+    """
+
+    affine_transform_px_to_geo = affine_transform_px_to_geo.to_shapely()
+    transform_cropped_px_to_geo_arr = np.asarray(affine_transform_px_to_geo)
+
+    x_offset_m = round(crop_window.col_off) * transform_cropped_px_to_geo_arr[0]
+    y_offset_m = round(crop_window.row_off) * transform_cropped_px_to_geo_arr[3]
+    transform_cropped_px_to_geo_arr[4] += x_offset_m
+    transform_cropped_px_to_geo_arr[5] += y_offset_m
+    return tuple(transform_cropped_px_to_geo_arr.tolist())
 
 
 def create_squared_box_around(

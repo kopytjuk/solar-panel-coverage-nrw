@@ -10,8 +10,11 @@ Determine the solar roof coverage in North Rhine Westphalia (NRW) using [OpenGeo
 
 ## Run everything at once
 
+
+In a fresh shell session (not the one from VSCode), run
+
 ```
-source ./scripts/run_full_pipeline.sh
+./scripts/run_full_pipeline.sh
 ```
 
 ## Hello world Docker
