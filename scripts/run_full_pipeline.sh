@@ -1,8 +1,9 @@
 #!/bin/zsh
 
 # ---- CONFIGURATION START ----
-# TILES=("318_5653_1")
-TILES=("318_5652_1" "318_5653_1" "318_5654_1" "319_5652_1" "319_5653_1" "319_5654_1" "320_5652_1" "320_5653_1" "320_5654_1")
+
+TILES=("318_5653_1")
+# TILES=("318_5652_1" "318_5653_1" "318_5654_1" "319_5652_1" "319_5653_1" "319_5654_1" "320_5652_1" "320_5653_1" "320_5654_1")
 
 SEGMENTATION_THRESHOLD=0.8
 
@@ -11,18 +12,22 @@ SOLAR_PANEL_DETECTOR_REPO_FOLDER="/Users/kopytjuk/Code/solar-panel-segmentation"
 
 OUTPUT_MAIN_FOLDER=/Users/kopytjuk/Data/roof-analysis/Titz/
 
-
 # to allow deletions in ZSH
 setopt localoptions rmstarsilent
 
-
 # ---- CONFIGURATION END ----
+# DO NOT change the commands below!
+
 
 for TILE in "${TILES[@]}"; do
 
     echo "### Processing tile $TILE ###"
 
     TILE_RESULT_FOLDER="$OUTPUT_MAIN_FOLDER/$TILE"
+
+    IMAGES_AND_MASKS_PARENT_FOLDER="$TILE_RESULT_FOLDER/aerial-images/"
+    CROPPED_IMAGES_FOLDER="$IMAGES_AND_MASKS_PARENT_FOLDER/raw/"
+    SEGMENTATION_MASK_FOLDER="$IMAGES_AND_MASKS_PARENT_FOLDER/masks/"
 
     # Delete all contents within the folder
     rm -rf "$TILE_RESULT_FOLDER/*"
@@ -43,9 +48,6 @@ for TILE in "${TILES[@]}"; do
 
     echo "----- Crop the images for the solar panel detector -----"
 
-    IMAGES_AND_MASKS_PARENT_FOLDER="$TILE_RESULT_FOLDER/aerial-images/"
-
-    CROPPED_IMAGES_FOLDER="$IMAGES_AND_MASKS_PARENT_FOLDER/raw/"
     mkdir -p $CROPPED_IMAGES_FOLDER
     poetry run image-cropper "$TILE_RESULT_FOLDER/buildings_general_info.gpkg" $CROPPED_IMAGES_FOLDER \
         || { echo "Image-cropping failed for tile $TILE. Skipping to next tile."; rm -rf $TILE_RESULT_FOLDER; continue; }
@@ -55,7 +57,7 @@ for TILE in "${TILES[@]}"; do
     cd $SOLAR_PANEL_DETECTOR_REPO_FOLDER
 
     # create segmentation masks
-    SEGMENTATION_MASK_FOLDER="$IMAGES_AND_MASKS_PARENT_FOLDER/masks/"
+    
     poetry run python run.py segment_new_data $IMAGES_AND_MASKS_PARENT_FOLDER $SEGMENTATION_MASK_FOLDER
 
     # go back
