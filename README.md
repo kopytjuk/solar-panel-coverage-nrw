@@ -6,6 +6,8 @@ Determine the solar panel energy yield in North Rhine Westphalia (NRW) using [Op
 
 ## Overview
 
+The approach is described in my [blog post](https://kopytjuk.github.io/posts/solar-panel-analysis/).
+
 ![methodology](docs/methodology.png)
 
 This project contains multiple command line tools:
