@@ -25,7 +25,9 @@ def building_finder_cli(
     output_location: str,
     with_address_only: bool,
 ):
-    """Command-line interface for extracting building polygons from OSM."""
+    """Extract buildings with their addresses and outline geometries from OpenStreetMap.
+    The area of extraction is defined by the TILE_NAME which follows the nomenclature of OpenGeodata.NRW."""
+
     click.echo(f"Starting building extraction for tile: {tile_name}")
     click.echo(f"Output will be saved to: {output_location}")
 

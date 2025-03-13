@@ -39,6 +39,7 @@ def extract_energy_from_buildings(
     energy_data_location: str,
     *,
     segmentation_threshold: float,
+    efficiency: float = 0.21,
 ) -> pd.DataFrame:
     buildings = gpd.read_file(buildings_file)
 
@@ -94,75 +95,77 @@ def extract_energy_from_buildings(
         energy_map_filename = f"{tile_name}.{file_extension}"
         energy_filepath = os.path.join(energy_data_location, energy_map_filename)
 
-        with rasterio.open(energy_filepath) as energy_file:
+        with rasterio.open(energy_filepath) as energy_yield_file:
             # transforms a UTM coordinate to pixel coordinates
-            transform_px_to_geo_energy = energy_file.transform
+            transform_px_to_geo_yield = energy_yield_file.transform
 
-            no_data_value = energy_file.profile["nodata"]
+            no_data_value = energy_yield_file.profile["nodata"]
 
             crop_window = rasterio.windows.from_bounds(
                 *cropped_image_extent_utm.bounds,
-                transform=transform_px_to_geo_energy,
+                transform=transform_px_to_geo_yield,
             )
 
-            energy_cropped_area = energy_file.read(window=crop_window)
-            energy_cropped_area = energy_cropped_area[0, ...]
+            yield_cropped_area = energy_yield_file.read(window=crop_window)
+            yield_cropped_area = yield_cropped_area[0, ...]
 
-            energy_cropped_area[energy_cropped_area == no_data_value] = (
+            yield_cropped_area[yield_cropped_area == no_data_value] = (
                 0  # we assume the energy output is 0kWh/m^2 for this pixel
             )
 
-            energy_cropped_area_trafo = window_transform(crop_window, transform_px_to_geo_energy)
+            yield_cropped_area_trafo = window_transform(crop_window, transform_px_to_geo_yield)
 
-            building_mask_for_energy = rasterize(
+            building_mask = rasterize(
                 [building_polygon_utm],
-                out_shape=energy_cropped_area.shape,
-                transform=energy_cropped_area_trafo,
+                out_shape=yield_cropped_area.shape,
+                transform=yield_cropped_area_trafo,
                 fill=0,
                 default_value=1,
                 dtype=np.uint8,
+            ).astype(bool)
+
+            building_yield_bitmap = np.where(
+                building_mask,
+                yield_cropped_area,
+                np.zeros_like(yield_cropped_area),
             )
 
-            energy_building = np.where(
-                building_mask_for_energy.astype(bool),
-                energy_cropped_area,
-                np.zeros_like(energy_cropped_area),
-            )
-
-            solar_panel_segmentation_image = Image.open(
+            solar_panel_segmentation_bitmap = Image.open(
                 segmentation_output_folder / f"{building_id}.bmp"
             )
             # we reshape it in order to overlay with other bitmaps
-            solar_panel_segmentation_image = solar_panel_segmentation_image.resize(
-                energy_cropped_area.shape
+            solar_panel_segmentation_bitmap = solar_panel_segmentation_bitmap.resize(
+                yield_cropped_area.shape
             )
-            solar_panel_segmentation_arr = np.array(solar_panel_segmentation_image, copy=True)
-            solar_panel_segmentation_arr = solar_panel_segmentation_arr / 255
+            solar_panel_segmentation_mask = np.array(solar_panel_segmentation_bitmap, copy=True)
+            solar_panel_segmentation_mask = solar_panel_segmentation_mask / 255  # to 0..1
 
-            solar_panel_existence_mask = solar_panel_segmentation_arr > segmentation_threshold
+            # 0: does not exist, 1: exists
+            solar_panel_existence_in_building_mask = (
+                solar_panel_segmentation_mask > segmentation_threshold
+            )
 
             # keep only pixel within the building
-            solar_panel_existence_mask = np.where(
-                building_mask_for_energy.astype(bool),
-                solar_panel_existence_mask,
-                np.zeros_like(solar_panel_existence_mask),
+            solar_panel_existence_in_building_mask = (
+                building_mask & solar_panel_existence_in_building_mask
             )
 
-            energy_yield_solar = np.where(
-                solar_panel_existence_mask,
-                energy_building,
-                np.zeros_like(energy_building),
+            actual_yield_bitmap = np.where(
+                solar_panel_existence_in_building_mask,
+                building_yield_bitmap,
+                np.zeros_like(building_yield_bitmap),
             )
 
             area_pixel = 0.5 * 0.5  # in m2, depends on the energy file
-            actual_energy_yield = energy_yield_solar.sum() * area_pixel
-            potential_energy_yield = energy_building.sum() * area_pixel
+            actual_energy = actual_yield_bitmap.sum() * area_pixel
+            potential_energy = building_yield_bitmap.sum() * area_pixel
 
             energy_stats.append(
                 {
                     "building_id": building_id,
-                    "actual_energy_yield_kWh": actual_energy_yield,
-                    "potential_energy_yield_kWh": potential_energy_yield,
+                    "actual_energy_kWh": actual_energy,
+                    "mined_energy_kWh": actual_energy * efficiency,
+                    "potential_energy_kWh": potential_energy,
                 }
             )
 

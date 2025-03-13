@@ -12,6 +12,12 @@ logger = get_client_logger()
 @click.argument("buildings_file", type=click.Path(exists=True))
 @click.argument("output_folder", type=click.Path())
 def image_cropper_cli(buildings_file: str, output_folder: str):
+    """Extract a square-shaped image for each of the buildings in the BUILDINGS_FILE (gpkg).
+
+    Args:
+        buildings_file (str): GeoPackage file with buildings
+        output_folder (str): output folder where images shall be extracted
+    """
     click.echo(f"Processing buildings from: {buildings_file}")
     click.echo(f"Saving cropped images to: {output_folder}")
 

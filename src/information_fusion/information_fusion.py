@@ -38,8 +38,9 @@ def combine_information(
         merged_df.groupby("building_id")
         .agg(
             {
-                "actual_energy_yield_kWh": "min",
-                "potential_energy_yield_kWh": "min",
+                "actual_energy_kWh": "min",
+                "mined_energy_kWh": "min",
+                "potential_energy_kWh": "min",
             }
         )
         .reset_index(drop=False)

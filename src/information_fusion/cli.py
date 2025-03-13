@@ -15,6 +15,10 @@ logging.getLogger("pyogrio").setLevel(logging.WARNING)
 @click.argument("tile_results_folder", type=click.Path(exists=True, path_type=Path))
 @click.argument("output_file", type=click.Path())
 def merge_results_cli(tile_results_folder: str, output_file: str):
+    """Merges all information available. The `building_id` is the key to JOIN across
+    different artifacts stored in `tile_results_folder`.
+    """
+
     logger.info("Merging results from %s", tile_results_folder)
     final_gdf = combine_information(tile_results_folder)
 
