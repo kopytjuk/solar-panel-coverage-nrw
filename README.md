@@ -19,8 +19,6 @@ This project contains multiple command line tools:
 
 Solar panel segmentation (deep-learning based) is located in https://github.com/kopytjuk/solar-panel-segmentation
 
-
-
 ## Setup
 
 The setup assumes that [pyenv](https://github.com/pyenv/pyenv) is installed and 

@@ -1,49 +1,67 @@
-[tool.poetry]
+[project]
 name = "roof-analysis"
 version = "0.1.0"
 description = ""
-authors = ["Marat Kopytjuk <kopytjuk@gmail.com>"]
+authors = [{ name = "Marat Kopytjuk", email = "kopytjuk@gmail.com" }]
+requires-python = "~=3.12"
 readme = "README.md"
-packages = [
-    { include = "building_finder", from = "src" },
-    { include = "image_cropper", from = "src" },
-    { include = "energy_extractor", from = "src" },
-    { include = "utils", from = "src" },
+dependencies = [
+    "pandas>=2.2.0,<3",
+    "numpy>=2.0.0,<3",
+    "shapely>=2.0.0,<3",
+    "geopandas>=1.0.1,<2",
+    "matplotlib>=3.10.0,<4",
+    "ipykernel>=6.29.5,<7",
+    "plotly-express>=0.4.1,<0.5",
+    "nbformat>=5.10.4,<6",
+    "requests>=2.32.3,<3",
+    "osmnx>=2.0.1,<3",
+    "rasterio>=1.4.3,<2",
+    "tqdm>=4.67.1,<5",
+    "beautifulsoup4>=4.13.3,<5",
+    "azure-storage-blob>=12.24.1,<13",
+    "azure-identity>=1.20.0,<2",
+    "seaborn>=0.13.2,<0.14",
+    "pillow>=11.1.0,<12",
 ]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-pandas = "^2.2.0"
-numpy = "^2.0.0"
-shapely = "^2.0.0"
-geopandas = "^1.0.1"
-matplotlib = "^3.10.0"
-ipykernel = "^6.29.5"
-plotly-express = "^0.4.1"
-nbformat = "^5.10.4"
-requests = "^2.32.3"
-osmnx = "^2.0.1"
-rasterio = "^1.4.3"
-tqdm = "^4.67.1"
-beautifulsoup4 = "^4.13.3"
-azure-storage-blob = "^12.24.1"
-azure-identity = "^1.20.0"
-seaborn = "^0.13.2"
-pillow = "^11.1.0"
-
-[tool.poetry.scripts]
+[project.scripts]
 building-selector = "building_finder.cli:building_finder_cli"
 image-cropper = "image_cropper.cli:image_cropper_cli"
 energy-extractor = "energy_extractor.cli:energy_extractor_cli"
 combine-results = "information_fusion.cli:merge_results_cli"
 
-[tool.poetry.group.test.dependencies]
-pytest = "^8.0.0"
+[dependency-groups]
+test = ["pytest>=8.0.0,<9"]
 
+[tool.uv]
+default-groups = ["test"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/building_finder",
+    "src/image_cropper",
+    "src/energy_extractor",
+    "src/utils",
+]
+
+[tool.hatch.build.targets.wheel]
+include = [
+    "src/building_finder",
+    "src/image_cropper",
+    "src/energy_extractor",
+    "src/utils",
+]
+
+[tool.hatch.build.targets.wheel.sources]
+"src/building_finder" = "building_finder"
+"src/image_cropper" = "image_cropper"
+"src/energy_extractor" = "energy_extractor"
+"src/utils" = "utils"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.ruff]
 line-length = 99
