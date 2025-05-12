@@ -15,12 +15,13 @@ from utils.opengeodata_nrw import parse_download_links
 
 def download_files(links: pd.DataFrame, destination: str, polling_interval: float = 1.0):
     if "blob.core.windows" in destination:
+        storage_acc, container, path = parse_blob_storage_uri(destination)
+
         default_credential = DefaultAzureCredential()
         fs = AzureBlobFileSystem(
-            account_name="solaryieldstorage",
+            account_name=storage_acc,
             credential=default_credential,
         )
-        container, path = parse_blob_storage_uri(destination)
 
         output_path = fs.sep.join([container, path])
         if output_path.endswith("/"):
