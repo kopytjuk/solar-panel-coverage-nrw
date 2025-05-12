@@ -1,5 +1,9 @@
 from enum import StrEnum
 
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+
 
 class DatasetType(StrEnum):
     AERIAL_IMAGE = "aerial_image"
@@ -19,3 +23,27 @@ FILE_EXTENSIONS = {
     DatasetType.ENERGY_YIELD_50CM: "tif",
     DatasetType.ENERGY_YIELD_100CM: "tif",
 }
+
+
+def parse_download_links(
+    url: str, dataset_type: DatasetType = DatasetType.AERIAL_IMAGE
+) -> pd.DataFrame:
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, features="xml")
+
+    files = list()
+    for file_tag in soup.find_all("file"):
+        file_name = file_tag.get("name")
+        size_bytes = file_tag.get("size")
+        file = {
+            "name": file_name,
+            "size": int(size_bytes),
+        }
+        files.append(file)
+    # Create a DataFrame from the list of files
+    df = pd.DataFrame(files)
+
+    # add url
+    df["url"] = df["name"].apply(lambda x: DOWNLOAD_BASE_URL[dataset_type] + f"{x}")
+
+    return df

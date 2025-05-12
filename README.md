@@ -10,14 +10,14 @@ The approach is described in my [blog post](https://kopytjuk.github.io/posts/sol
 
 ![methodology](docs/methodology.png)
 
-This project contains multiple command line tools:
+This project contains multiple command line tools (in order of execution):
 
-- `building-selector --help`
-- `image-cropper --help`
-- `energy-extractor --help`
-- `combine-results --help`
+1. `building-selector --help`
+2. `image-cropper --help`
+3. Solar panel segmentation (deep-learning based) is located in https://github.com/kopytjuk/solar-panel-segmentation
+4. `energy-extractor --help`
+5. `combine-results --help`
 
-Solar panel segmentation (deep-learning based) is located in https://github.com/kopytjuk/solar-panel-segmentation
 
 ## Setup
 
@@ -34,9 +34,10 @@ Note that `.python-version`
 
 ### This repository
 
-```
-pyenv local 3.12
-poetry install
+```shell
+uv sync
+# and run a single tool
+uv run building-selector --help
 ```
 
 ### Segmentation model
