@@ -21,42 +21,28 @@ This project contains multiple command line tools (in order of execution):
 
 ## Setup
 
-The setup assumes that [pyenv](https://github.com/pyenv/pyenv) is installed and 
-poetry is configured to use the currently active python version:
-
-```
-poetry config virtualenvs.prefer-active-python true
-```
-
-I.e. a virtual environment setup will use the python executable which it finds via `which python`.
-
-Note that `.python-version`
-
-### This repository
+This project uses [uv](https://docs.astral.sh/uv/) as a project manager.
 
 ```shell
 uv sync
+
 # and run a single tool
 uv run building-selector --help
 ```
 
-### Segmentation model
+## Components
 
-In a separate terminal
+### Building Selector
+Identifies and selects suitable building footprints from geospatial and OpenStreetMap data to determine candidates for subsequent solar panel analysis.
 
-```bash
-cd ...  # your folder where you store your projects
-git clone https://github.com/kopytjuk/solar-panel-segmentation
+### Image Cropper
+Extracts and preprocesses satellite imagery. It crops the areas of interest corresponding to the selected buildings, preparing high-quality inputs for further processing.
 
-cd solar-panel-segmentation
-poetry install
-```
+### Solar Panel Segmentation
+A deep-learning based tool (located at [solar-panel-segmentation](https://github.com/kopytjuk/solar-panel-segmentation)) that segments images to detect the presence of solar panel installations on buildings.
 
-## Run everything at once
+### Energy Extractor
+Calculates both actual and potential energy yields for each building. It processes the building geometries and segmentation results to determine energy statistics. See the [`extract_energy_from_buildings`](src/energy_extractor/energy_extraction.py) function in [src/energy_extractor/energy_extraction.py](src/energy_extractor/energy_extraction.py).
 
-
-In a fresh shell session (not the one from VSCode), run
-
-```
-./scripts/run_full_pipeline.sh
-```
+### Combine Results
+Aggregates outputs from the previous tools into a cohesive analysis, enabling a comprehensive overview of the solar panel energy yield across different regions.
