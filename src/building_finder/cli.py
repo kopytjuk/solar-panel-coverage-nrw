@@ -1,19 +1,19 @@
 import logging
-from pathlib import Path
 
 import click
 
-from building_finder.extract_buildings import extract_buildings
+from building_finder.extract_buildings import extract_buildings, write_gdf_to
 from utils.logging import get_client_logger
 
 logger = get_client_logger()
 
 logging.getLogger("pyogrio").setLevel(logging.WARNING)
+logging.getLogger("azure").setLevel(logging.WARNING)
 
 
 @click.command()
 @click.argument("tile_name", type=click.STRING)
-@click.argument("output_location", type=click.Path(exists=True))
+@click.argument("output_location", type=click.Path(exists=False))
 @click.option(
     "--with-address-only",
     default=True,
@@ -31,12 +31,17 @@ def building_finder_cli(
     click.echo(f"Starting building extraction for tile: {tile_name}")
     click.echo(f"Output will be saved to: {output_location}")
 
-    output_location = Path(output_location)
-    extract_buildings(
+    buildings_gdf = extract_buildings(
         tile_name,
-        output_location,
         with_address=with_address_only,
     )
+
+    write_gdf_to(
+        output_location,
+        buildings_gdf,
+        f"{tile_name}_buildings.gpkg",
+    )
+
     logger.info("Building finder complete!")
 
 
