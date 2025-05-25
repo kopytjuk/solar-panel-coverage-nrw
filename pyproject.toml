@@ -36,6 +36,11 @@ energy-extractor = "energy_extractor.cli:energy_extractor_cli"
 combine-results = "information_fusion.cli:merge_results_cli"
 
 [dependency-groups]
+orchestration = [
+    "azure-batch>=14.2.0",
+    "azure-identity>=1.20.0",
+    "python-dotenv>=1.1.0",
+]
 test = ["pytest>=8.0.0,<9"]
 
 [tool.uv]
