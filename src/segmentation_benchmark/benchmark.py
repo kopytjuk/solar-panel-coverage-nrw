@@ -4,11 +4,15 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
+from utils.logging import get_library_logger
+
+logger = get_library_logger(__name__)
+
 
 class SegmentationBenchmark:
     """Class for evaluating segmentation performance between prediction and ground truth masks."""
 
-    def __init__(self, pred_folder: str | Path, gt_folder: str | Path):
+    def __init__(self, pred_folder: str | Path, gt_folder: str | Path, threshold: float = 0.5):
         """Initialize with prediction and ground truth folders.
 
         Args:
@@ -18,16 +22,20 @@ class SegmentationBenchmark:
         self.pred_folder = Path(pred_folder)
         self.gt_folder = Path(gt_folder)
 
+        self._threshold = threshold
+
         # Verify folders exist
         if not self.pred_folder.exists():
             raise ValueError(f"Prediction folder does not exist: {self.pred_folder}")
         if not self.gt_folder.exists():
             raise ValueError(f"Ground truth folder does not exist: {self.gt_folder}")
 
-    def _load_image(self, path: Path) -> np.ndarray:
+    def _load_image(self, path: Path, image_size: tuple[int, int] | None = None) -> np.ndarray:
         """Load image and convert to binary mask."""
         img = Image.open(path)
-        return np.array(img) > 0
+        if image_size:
+            img = img.resize(image_size)
+        return np.array(img) > self._threshold
 
     def calculate_metrics(self) -> pd.DataFrame:
         """Calculate IoU and Dice metrics for each image pair.
@@ -42,15 +50,19 @@ class SegmentationBenchmark:
         pred_files.extend(self.pred_folder.glob("*.bmp"))
         pred_files.extend(self.pred_folder.glob("*.tif"))
 
-        for pred_path in pred_files:
-            gt_path = self.gt_folder / pred_path.name
+        logger.debug(f"Found {len(pred_files)} prediction files in {self.pred_folder}")
 
-            if not gt_path.exists():
+        for pred_path in pred_files:
+            # Find ground truth file by matching base name (stem)
+            gt_candidates = list(self.gt_folder.glob(f"{pred_path.stem}.*"))
+            if not gt_candidates:
+                logger.debug(f"Ground truth file does not exist for {pred_path.name}, skipping")
                 continue
+            gt_path = gt_candidates[0]
 
             # Load images
             pred_mask = self._load_image(pred_path)
-            gt_mask = self._load_image(gt_path)
+            gt_mask = self._load_image(gt_path, image_size=pred_mask.shape[:2])
 
             results.append(self._calculate_single_pair(pred_mask, gt_mask, pred_path.name))
 
