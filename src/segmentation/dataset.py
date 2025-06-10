@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 
 import torch
@@ -6,8 +7,14 @@ from PIL import Image
 from torch.utils.data import Dataset
 
 
-class SegmentationDataset(Dataset):
-    def __init__(self, root_dir: str | Path, extension: str = "tif", transform=None):
+class PvSegmentationDataset(Dataset):
+    def __init__(
+        self,
+        root_dir: str | Path,
+        extension: str = "tif",
+        transform=None,
+        mode: str | int = "full",
+    ):
         """
         Args:
             data (list): List of tuples containing image and mask paths.
@@ -37,6 +44,13 @@ class SegmentationDataset(Dataset):
         mask_files = sorted(mask_files, key=lambda x: x.stem)
 
         self._samples_list = list(zip(image_files, mask_files))
+
+        if mode == "full":
+            pass
+        elif isinstance(mode, int) and mode > 0:
+            self._samples_list = random.choices(self._samples_list, k=mode)
+        else:
+            raise ValueError(f"Invalid mode: {mode}. Use 'full' or a positive integer.")
 
         self._transform = transform
 

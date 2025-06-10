@@ -7,25 +7,23 @@ from torch.optim import lr_scheduler
 
 type StageType = Literal["train", "valid", "test"]
 
-# TODO
-# - Change to 'unetplusplus' model, i.e. segmentation_models_pytorch.UnetPlusPlus
-# - Add a save and load method (https://smp.readthedocs.io/en/latest/save_load.html)
 
+class PvSegmentationModel(pl.LightningModule):
+    """Photovoltaic segmentation model based on Unet++ architecture from
+    `segmentation_models_pytorch` library."""
 
-class SegmentationModel(pl.LightningModule):
     def __init__(
         self,
-        arch,
-        encoder_name,
-        in_channels,
-        out_classes,
+        encoder_name: str = "resnet34",
+        in_channels: int = 3,
+        out_classes: int = 1,
         train_encoder: bool = False,
         **kwargs,
     ):
         super().__init__()
-        self.model = smp.create_model(
-            arch,
+        self.model = smp.UnetPlusPlus(
             encoder_name=encoder_name,
+            encoder_weights="imagenet",
             in_channels=in_channels,
             classes=out_classes,
             encoder_freeze=True,
@@ -49,7 +47,16 @@ class SegmentationModel(pl.LightningModule):
         self.validation_step_outputs = []
         self.test_step_outputs = []
 
-    def forward(self, image: torch.Tensor):
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        """Forward pass of the model
+
+        Args:
+            image (torch.Tensor): input image(s) in B x C x H x W format.
+
+        Returns:
+            torch.Tensor: output segmentation mask in B x 1 x H x W format.
+                0...1 probability for a pixel to belong to a solar panel.
+        """
         # B x C x H x W
         # normalize wrt. encoder weights here
         image = (image - self.mean) / self.std
@@ -91,7 +98,9 @@ class SegmentationModel(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=2e-4)
-        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=T_MAX, eta_min=1e-5)
+
+        T_max = 1000
+        scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=T_max, eta_min=1e-5)
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -171,3 +180,15 @@ class SegmentationModel(pl.LightningModule):
         }
 
         self.log_dict(metrics, prog_bar=True)
+
+    def save_model(self, file_path: str):
+        """
+        Save the model to the specified path.
+        """
+        self.model.save_pretrained(file_path)
+
+    def load_model(self, file_path: str):
+        """
+        Load the model from the specified path.
+        """
+        self.model = smp.from_pretrained(file_path)
