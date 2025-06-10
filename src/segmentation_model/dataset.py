@@ -13,7 +13,7 @@ class PvSegmentationDataset(Dataset):
         root_dir: str | Path,
         extension: str = "tif",
         transform=None,
-        mode: str | int = "full",
+        mode: str | int | None = "full",
     ):
         """
         Args:
@@ -45,7 +45,7 @@ class PvSegmentationDataset(Dataset):
 
         self._samples_list = list(zip(image_files, mask_files))
 
-        if mode == "full":
+        if mode == "full" or mode is None:
             pass
         elif isinstance(mode, int) and mode > 0:
             self._samples_list = random.choices(self._samples_list, k=mode)
@@ -54,13 +54,15 @@ class PvSegmentationDataset(Dataset):
 
         self._transform = transform
 
-    def _load_image(self, image_path: Path) -> torch.Tensor:
+    @staticmethod
+    def load_image(image_path: Path, resize_shape=(256, 256)) -> torch.Tensor:
         """Load an image from the given path. Returns in CHW format."""
-        pil_image = Image.open(image_path)
+        pil_image = Image.open(image_path).convert("RGB")  # Ensure image is in RGB format
         # Convert to torch tensor (CHW format)
         transform = T.Compose(
             [
-                T.ToTensor()  # This converts PIL Image to tensor and normalizes to [0, 1]
+                T.Resize(resize_shape),  # Resize to a fixed size (optional)
+                T.ToTensor(),  # This converts PIL Image to tensor and normalizes to [0, 1]
             ]
         )
 
@@ -88,7 +90,7 @@ class PvSegmentationDataset(Dataset):
 
     def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor]:
         image_path, mask_path = self._samples_list[idx]
-        image = self._load_image(image_path)
+        image = self.load_image(image_path)
         mask = self._load_mask(mask_path)
 
         if self._transform:

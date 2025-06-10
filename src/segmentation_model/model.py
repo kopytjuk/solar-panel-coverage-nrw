@@ -18,6 +18,7 @@ class PvSegmentationModel(pl.LightningModule):
         in_channels: int = 3,
         out_classes: int = 1,
         train_encoder: bool = False,
+        learning_rate: float = 2e-4,
         **kwargs,
     ):
         super().__init__()
@@ -46,6 +47,9 @@ class PvSegmentationModel(pl.LightningModule):
         self.training_step_outputs = []
         self.validation_step_outputs = []
         self.test_step_outputs = []
+
+        # training parameters
+        self._learning_rate = learning_rate
 
     def forward(self, image: torch.Tensor) -> torch.Tensor:
         """Forward pass of the model
@@ -97,7 +101,7 @@ class PvSegmentationModel(pl.LightningModule):
         return
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=2e-4)
+        optimizer = torch.optim.Adam(self.parameters(), lr=self._learning_rate)
 
         T_max = 1000
         scheduler = lr_scheduler.CosineAnnealingLR(optimizer, T_max=T_max, eta_min=1e-5)
