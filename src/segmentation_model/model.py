@@ -178,9 +178,15 @@ class PvSegmentationModel(pl.LightningModule):
         # with "empty" images (images without target class) a large gap could be observed.
         # Empty images influence a lot on per_image_iou and much less on dataset_iou.
         dataset_iou = smp.metrics.iou_score(tp, fp, fn, tn, reduction="micro")
+
+        # total loss
+        loss_list = [x["loss"] for x in outputs]
+        epoch_loss = sum(loss_list) / len(loss_list)
+
         metrics = {
             f"{stage}_per_image_iou": per_image_iou,
             f"{stage}_dataset_iou": dataset_iou,
+            f"{stage}_loss": epoch_loss,
         }
 
         self.log_dict(metrics, prog_bar=True)

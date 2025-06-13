@@ -1,11 +1,14 @@
 """Trains a PV segmentation model."""
 
+import json
+import shutil
 from pathlib import Path
 
 import click
 import lightning as pl
 import segmentation_models_pytorch as smp
 import torch
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from torch.utils.data import random_split
 
 from segmentation_model.dataset import PvSegmentationDataset
@@ -14,6 +17,7 @@ from segmentation_model.model import PvSegmentationModel
 
 def train_model(
     root_dir: Path,
+    output_dir: Path,
     batch_size: int = 8,
     num_workers: int = 4,
     num_samples: int | None = None,
@@ -65,18 +69,38 @@ def train_model(
     # Initialize model
     model = PvSegmentationModel(train_encoder=train_encoder, learning_rate=learning_rate)
 
-    # TODO: implement early stopping and model checkpointing
+    # TODO: implement model checkpointing
+    metric_for_training_stop = "valid_loss"
+    early_stopping_callback = EarlyStopping(
+        monitor=metric_for_training_stop, mode="min", patience=3
+    )
+
+    checkpoint_callback = ModelCheckpoint(
+        monitor=metric_for_training_stop,
+        dirpath=output_dir,
+        filename="checkpoint-{epoch:02d}-{" + metric_for_training_stop + ":.2f}",
+    )
 
     # Initialize Lightning trainer
-    trainer = pl.Trainer(max_epochs=epochs, log_every_n_steps=1)
+    trainer = pl.Trainer(
+        max_epochs=epochs,
+        log_every_n_steps=1,
+        callbacks=[early_stopping_callback, checkpoint_callback],
+    )
 
     # Train the model
     trainer.fit(model, train_loader, valid_loader)
 
+    best_model_path = checkpoint_callback.best_model_path
+
+    model = PvSegmentationModel.load_from_checkpoint(best_model_path)
+
     valid_metrics = trainer.validate(model, dataloaders=valid_loader, verbose=False)
+    valid_metrics = valid_metrics[0]  # list equals the number of dataloaders
     print(valid_metrics)
 
     test_metrics = trainer.test(model, dataloaders=test_loader, verbose=False)
+    test_metrics = test_metrics[0]
     print(test_metrics)
 
     return model, test_metrics
@@ -106,8 +130,14 @@ def train_model_cli(
     num_samples: int | None = None,
 ):
     """Train a segmentation model CLI wrapper."""
+
+    output_folder = Path(output_folder)
+    checkpoint_path = output_folder / "_checkpoints"
+    checkpoint_path.mkdir(parents=True, exist_ok=True)
+
     model, test_metrics = train_model(
         root_dir=Path(root_dir),
+        output_dir=checkpoint_path,
         batch_size=batch_size,
         num_workers=num_workers,
         epochs=epochs,
@@ -116,14 +146,17 @@ def train_model_cli(
         num_samples=num_samples,  # Not used in this function
     )
 
-    output_folder = Path(output_folder)
+    # remove checkpoints folder
+    shutil.rmtree(str(checkpoint_path))
+
     model_path = output_folder / "stored_model"
     model_path.mkdir(parents=True, exist_ok=True)
 
     model.save_model(model_path)
 
-    # TODO store metrics as JSON
-    test_metrics
+    # store metrics
+    test_metrics_as_json = json.dumps(test_metrics, indent=4)
+    (output_folder / "test_metrics.json").write_text(test_metrics_as_json)
 
 
 if __name__ == "__main__":
