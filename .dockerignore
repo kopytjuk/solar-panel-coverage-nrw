@@ -90,3 +90,5 @@ venv/
 
 data/
 results/
+models/
+lightning_logs
