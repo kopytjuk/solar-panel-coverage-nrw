@@ -20,6 +20,7 @@ def train_model(
     output_dir: Path,
     batch_size: int = 8,
     num_workers: int = 4,
+    patience: int = 5,
     num_samples: int | None = None,
     epochs: int = 10,
     learning_rate: float = 1e-3,
@@ -72,7 +73,7 @@ def train_model(
     # TODO: implement model checkpointing
     metric_for_training_stop = "valid_loss"
     early_stopping_callback = EarlyStopping(
-        monitor=metric_for_training_stop, mode="min", patience=3
+        monitor=metric_for_training_stop, mode="min", patience=patience
     )
 
     checkpoint_callback = ModelCheckpoint(
@@ -117,6 +118,13 @@ def train_model(
 @click.option("--epochs", "-e", default=10, help="Number of training epochs")
 @click.option("--learning-rate", "-lr", default=1e-3, help="Learning rate", type=click.FLOAT)
 @click.option(
+    "--patience",
+    "-pt",
+    default=10,
+    help="Number of epochs to run without improvement before stopping the training",
+    type=click.INT,
+)
+@click.option(
     "--train-encoder/--freeze-encoder", default=False, help="Whether to train the encoder"
 )
 def train_model_cli(
@@ -126,6 +134,7 @@ def train_model_cli(
     num_workers: int,
     epochs: int,
     learning_rate: float,
+    patience: int,
     train_encoder: bool,
     num_samples: int | None = None,
 ):
@@ -140,6 +149,7 @@ def train_model_cli(
         output_dir=checkpoint_path,
         batch_size=batch_size,
         num_workers=num_workers,
+        patience=patience,
         epochs=epochs,
         learning_rate=learning_rate,
         train_encoder=train_encoder,
