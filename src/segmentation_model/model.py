@@ -115,30 +115,37 @@ class PvSegmentationModel(pl.LightningModule):
         }
 
     def shared_step(self, batch: tuple, stage: StageType) -> dict:
-        image = batch[0]
-        mask = batch[1]
+        images = batch[0]
+        masks = batch[1]
 
         # Shape of the image should be (batch_size, num_channels, height, width)
         # if you work with grayscale images, expand channels dim to have [batch_size, 1, height, width]
-        assert image.ndim == 4
-
+        assert images.ndim == 4, (
+            "Images should have 4 dimensions: (batch_size, num_channels, height, width)"
+        )
+        assert masks.ndim == 4, (
+            "Masks should have 4 dimensions: (batch_size, num_classes, height, width)"
+        )
         # Check that image dimensions are divisible by 32,
         # encoder and decoder connected by `skip connections` and usually encoder have 5 stages of
         # downsampling by factor 2 (2 ^ 5 = 32); e.g. if we have image with shape 65x65 we will have
         # following shapes of features in encoder and decoder: 84, 42, 21, 10, 5 -> 5, 10, 20, 40, 80
         # and we will get an error trying to concat these features
-        h, w = image.shape[2:]
+        h, w = images.shape[2:]
         assert h % 32 == 0 and w % 32 == 0
 
-        assert mask.ndim == 4
-
         # Check that mask values in between 0 and 1, NOT 0 and 255 for binary segmentation
-        assert mask.max() <= 1.0 and mask.min() >= 0
+        assert images.max() <= 1.0 and images.min() >= 0, (
+            "Image values should be in [0, 1] range. "
+        )
+        assert masks.max() <= 1.0 and masks.min() >= 0, (
+            "Mask values should be in [0, 1] range for binary segmentation. "
+        )
 
-        logits_mask = self.forward(image)
+        logits_mask = self.forward(images)
 
         # Predicted mask contains logits, and loss_fn param `from_logits` is set to True
-        loss = self.loss_fn(logits_mask, mask)
+        loss = self.loss_fn(logits_mask, masks)
 
         # Lets compute metrics for some threshold
         # first convert mask values to probabilities, then
@@ -152,7 +159,7 @@ class PvSegmentationModel(pl.LightningModule):
         # but for now we just compute true positive, false positive, false negative and
         # true negative 'pixels' for each image and class
         # these values will be aggregated in the end of an epoch
-        tp, fp, fn, tn = smp.metrics.get_stats(pred_mask.long(), mask.long(), mode="binary")
+        tp, fp, fn, tn = smp.metrics.get_stats(pred_mask.long(), masks.long(), mode="binary")
         return {
             "loss": loss,
             "tp": tp,

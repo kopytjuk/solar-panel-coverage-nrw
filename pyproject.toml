@@ -30,6 +30,8 @@ dependencies = [
     "lightning>=2.5.1.post0",
     "segmentation-models-pytorch>=0.5.0",
     "torch>=2.7.1",
+    "albumentations>=2.0.8",
+    "scikit-learn>=1.7.0",
 ]
 
 [project.scripts]

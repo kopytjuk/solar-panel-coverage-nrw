@@ -95,6 +95,7 @@ def crop_images_from_buildings(
             # )
             # img.show()
 
+        # we store the transformation matrix for later use
         transform_cropped_px_to_geo = window_transform(
             crop_window, affine_transform_px_to_geo
         ).to_shapely()

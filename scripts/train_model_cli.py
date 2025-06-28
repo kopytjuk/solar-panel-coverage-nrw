@@ -5,106 +5,11 @@ import shutil
 from pathlib import Path
 
 import click
-import lightning as pl
-import segmentation_models_pytorch as smp
-import torch
-from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
-from torch.utils.data import random_split
 
-from segmentation_model.dataset import PvSegmentationDataset
-from segmentation_model.model import PvSegmentationModel
+from segmentation_model.training import train_model
+from utils.logging import get_client_logger
 
-
-def train_model(
-    root_dir: Path,
-    output_dir: Path,
-    batch_size: int = 8,
-    num_workers: int = 4,
-    patience: int = 5,
-    num_samples: int | None = None,
-    epochs: int = 10,
-    learning_rate: float = 1e-3,
-    train_encoder: bool = False,
-    train_val_proportion: tuple[float, float, float] = (0.7, 0.2),
-) -> smp.base.SegmentationModel:
-    """Train a segmentation model.
-
-    Args:
-        root_dir: Path to the dataset directory
-        batch_size: Batch size for training
-        num_workers: Number of data loader workers
-        epochs: Number of training epochs
-        learning_rate: Learning rate
-        train_encoder: Whether to train the encoder
-
-    Returns:
-        Trained Lightning trainer instance
-    """
-    # Initialize dataset
-    if num_samples is None:
-        num_samples = "full"
-    full_dataset = PvSegmentationDataset(root_dir=root_dir, mode=num_samples)
-
-    train_proportion, val_proportion = train_val_proportion
-    total_size = len(full_dataset)
-    train_size = int(train_proportion * total_size)
-    val_size = int(val_proportion * total_size)
-    test_size = total_size - train_size - val_size
-
-    # Create the splits
-    train_dataset, valid_dataset, test_dataset = random_split(
-        full_dataset,
-        [train_size, val_size, test_size],
-        generator=torch.Generator().manual_seed(42),  # Set seed for reproducibility
-    )
-
-    # Create data loaders
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
-    )
-    valid_loader = torch.utils.data.DataLoader(
-        valid_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers
-    )
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
-    # Initialize model
-    model = PvSegmentationModel(train_encoder=train_encoder, learning_rate=learning_rate)
-
-    # TODO: implement model checkpointing
-    metric_for_training_stop = "valid_loss"
-    early_stopping_callback = EarlyStopping(
-        monitor=metric_for_training_stop, mode="min", patience=patience
-    )
-
-    checkpoint_callback = ModelCheckpoint(
-        monitor=metric_for_training_stop,
-        dirpath=output_dir,
-        filename="checkpoint-{epoch:02d}-{" + metric_for_training_stop + ":.2f}",
-    )
-
-    # Initialize Lightning trainer
-    trainer = pl.Trainer(
-        max_epochs=epochs,
-        log_every_n_steps=1,
-        callbacks=[early_stopping_callback, checkpoint_callback],
-    )
-
-    # Train the model
-    trainer.fit(model, train_loader, valid_loader)
-
-    best_model_path = checkpoint_callback.best_model_path
-
-    model = PvSegmentationModel.load_from_checkpoint(best_model_path)
-
-    valid_metrics = trainer.validate(model, dataloaders=valid_loader, verbose=False)
-    valid_metrics = valid_metrics[0]  # list equals the number of dataloaders
-    print(valid_metrics)
-
-    test_metrics = trainer.test(model, dataloaders=test_loader, verbose=False)
-    test_metrics = test_metrics[0]
-    print(test_metrics)
-
-    return model, test_metrics
+logger = get_client_logger(level="INFO")
 
 
 @click.command()
@@ -127,6 +32,14 @@ def train_model(
 @click.option(
     "--train-encoder/--freeze-encoder", default=False, help="Whether to train the encoder"
 )
+@click.option(
+    "--use-augmentation",
+    "-au",
+    help="Whether to apply image augmentation on top of the training data",
+    default=False,
+    is_flag=True,
+    type=click.BOOL,
+)
 def train_model_cli(
     root_dir: str,
     output_folder: str,
@@ -136,6 +49,7 @@ def train_model_cli(
     learning_rate: float,
     patience: int,
     train_encoder: bool,
+    use_augmentation: bool,
     num_samples: int | None = None,
 ):
     """Train a segmentation model CLI wrapper."""
@@ -154,6 +68,7 @@ def train_model_cli(
         learning_rate=learning_rate,
         train_encoder=train_encoder,
         num_samples=num_samples,  # Not used in this function
+        use_augmentation=use_augmentation,
     )
 
     # remove checkpoints folder

@@ -1,6 +1,7 @@
-import random
 from pathlib import Path
 
+import albumentations as A
+import cv2
 import torch
 import torchvision.transforms as T
 from PIL import Image
@@ -10,25 +11,18 @@ from torch.utils.data import Dataset
 class PvSegmentationDataset(Dataset):
     def __init__(
         self,
-        root_dir: str | Path,
-        extension: str = "tif",
-        transform=None,
-        mode: str | int | None = "full",
+        image_files: list[Path],
+        mask_files: list[Path],
+        *,
+        resize_shape: tuple[int, int] = (256, 256),
+        transform: A.Compose | None = None,
     ):
         """
         Args:
             data (list): List of tuples containing image and mask paths.
             transform (callable, optional): Optional transform to be applied on a sample.
         """
-        self._root_folder = Path(root_dir)
-
-        image_folder = self._root_folder / "images"
-        mask_folder = self._root_folder / "labels"
-        if not image_folder.exists() or not mask_folder.exists():
-            raise FileNotFoundError(f"Image or mask folder does not exist in {self._root_folder}")
-
-        image_files = list(image_folder.glob(f"*.{extension}"))
-        mask_files = list(mask_folder.glob(f"*.{extension}"))
+        # self._root_folder = Path(root_dir)
 
         images_file_names = {image_file.stem for image_file in image_files}
         mask_file_names = {mask_file.stem for mask_file in mask_files}
@@ -44,19 +38,13 @@ class PvSegmentationDataset(Dataset):
         mask_files = sorted(mask_files, key=lambda x: x.stem)
 
         self._samples_list = list(zip(image_files, mask_files))
-
-        if mode == "full" or mode is None:
-            pass
-        elif isinstance(mode, int) and mode > 0:
-            self._samples_list = random.choices(self._samples_list, k=mode)
-        else:
-            raise ValueError(f"Invalid mode: {mode}. Use 'full' or a positive integer.")
-
+        self._resize_shape = resize_shape
         self._transform = transform
 
     @staticmethod
-    def load_image(image_path: Path, resize_shape=(256, 256)) -> torch.Tensor:
+    def load_image(image_path: Path, resize_shape: tuple[int, int] = (256, 256)) -> torch.Tensor:
         """Load an image from the given path. Returns in CHW format."""
+
         pil_image = Image.open(image_path).convert("RGB")  # Ensure image is in RGB format
         # Convert to torch tensor (CHW format)
         transform = T.Compose(
@@ -70,12 +58,14 @@ class PvSegmentationDataset(Dataset):
         torch_tensor = transform(pil_image)  # Shape will be (C, H, W)
         return torch_tensor
 
-    def _load_mask(self, mask_path: Path) -> torch.Tensor:
+    @staticmethod
+    def load_mask(mask_path: Path, resize_shape: tuple[int, int] = (256, 256)) -> torch.Tensor:
         """Load a mask from the given path. Returns in CHW format."""
         pil_mask = Image.open(mask_path)
         # Convert to torch tensor (CHW format)
         transform = T.Compose(
             [
+                T.Resize(resize_shape),  # Resize to a fixed size (optional)
                 T.ToTensor(),  # This converts PIL Image to tensor and normalizes to [0, 1]
                 T.Lambda(lambda x: x.long()),  # Convert to long type for masks
             ]
@@ -90,10 +80,26 @@ class PvSegmentationDataset(Dataset):
 
     def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor]:
         image_path, mask_path = self._samples_list[idx]
-        image = self.load_image(image_path)
-        mask = self._load_mask(mask_path)
 
         if self._transform:
-            image, mask = self._transform(image, mask)
+            # Read image and mask (as suggested in the albumentations docs)
+            image = cv2.imread(image_path)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = image.astype("float32")
 
+            mask = cv2.imread(mask_path, cv2.COLOR_BGR2GRAY)
+            mask = mask.astype("float32")
+
+            # Pass both image and mask
+            augmented = self._transform(image=image, mask=mask)
+
+            image, mask = augmented["image"], augmented["mask"]
+            image = image / 255.0  # Normalize image to [0, 1]
+            mask = mask / 255.0  # Normalize mask to [0, 1]
+
+            mask = torch.unsqueeze(mask, 0)  # Add channel dimension to mask
+
+        else:
+            image = self.load_image(image_path, self._resize_shape)
+            mask = self.load_mask(mask_path, self._resize_shape)
         return image, mask
