@@ -132,29 +132,32 @@ def train_model(
     return model_manager, test_metrics
 
 
-def split_into_train_val_test(image_files, mask_files):
+def split_into_train_val_test(
+    image_files, mask_files, train_val_proportion: tuple[float, float] = (0.7, 0.2)
+):
+    val_test_proportion = 1 - train_val_proportion[0]
     images_train, images_temp, masks_train, masks_temp = train_test_split(
-        image_files, mask_files, test_size=0.4, random_state=42
+        image_files, mask_files, test_size=val_test_proportion, random_state=42
     )
+
+    val_proportion = train_val_proportion[1] / val_test_proportion
 
     # Then, split temp into val and test
     images_val, images_test, masks_val, masks_test = train_test_split(
-        images_temp, masks_temp, test_size=0.5, random_state=42
+        images_temp, masks_temp, test_size=1 - val_proportion, random_state=42
     )
 
     return images_train, masks_train, images_val, images_test, masks_val, masks_test
 
 
-def list_images_and_masks_in_folder(root_dir):
-    image_folder_name = "images"
-    mask_folder_name = "labels"
-
+def list_images_and_masks_in_folder(
+    root_dir, image_folder_name="images", mask_folder_name="labels", extension: str = "tif"
+) -> tuple[list[Path], list[Path]]:
     image_folder = root_dir / image_folder_name
     mask_folder = root_dir / mask_folder_name
     if not image_folder.exists() or not mask_folder.exists():
         raise FileNotFoundError(f"Image or mask folder does not exist in {root_dir}")
 
-    extension: str = "tif"
     image_files = list(image_folder.glob(f"*.{extension}"))
     mask_files = list(mask_folder.glob(f"*.{extension}"))
 

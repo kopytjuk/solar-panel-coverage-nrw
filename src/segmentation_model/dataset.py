@@ -90,12 +90,13 @@ class PvSegmentationDataset(Dataset):
             mask = cv2.imread(mask_path, cv2.COLOR_BGR2GRAY)
             mask = mask.astype("float32")
 
+            image = image / 255.0  # Normalize image to [0, 1]
+            mask = mask / 255.0  # Normalize mask to [0, 1]
+
             # Pass both image and mask
             augmented = self._transform(image=image, mask=mask)
 
             image, mask = augmented["image"], augmented["mask"]
-            image = image / 255.0  # Normalize image to [0, 1]
-            mask = mask / 255.0  # Normalize mask to [0, 1]
 
             mask = torch.unsqueeze(mask, 0)  # Add channel dimension to mask
 
