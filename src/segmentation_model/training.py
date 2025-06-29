@@ -1,6 +1,7 @@
 """Trains a PV segmentation model."""
 
 from pathlib import Path
+from typing import Any
 
 import lightning as pl
 import segmentation_models_pytorch as smp
@@ -52,7 +53,7 @@ def train_model(
         mask_files = mask_files[:num_samples]
 
     images_train, masks_train, images_val, images_test, masks_val, masks_test = (
-        split_into_train_val_test(image_files, mask_files)
+        split_into_train_val_test(image_files, mask_files, train_val_proportion)
     )
 
     if use_augmentation:
@@ -89,6 +90,8 @@ def train_model(
     )
     test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
+    logger.info("Dataloaders created!")
+
     # Initialize model training
     model_manager = PvSegmentationModel(
         train_encoder=train_encoder,
@@ -117,34 +120,39 @@ def train_model(
     # Train the model
     trainer.fit(model_manager, train_loader, valid_loader)
 
-    best_model_path = checkpoint_callback.best_model_path
+    logger.info("Training completed! Loading the best model...")
 
+    best_model_path = checkpoint_callback.best_model_path
     model_manager = PvSegmentationModel.load_from_checkpoint(best_model_path)
 
     valid_metrics = trainer.validate(model_manager, dataloaders=valid_loader, verbose=False)
     valid_metrics = valid_metrics[0]  # list equals the number of dataloaders
-    print(valid_metrics)
+    logger.info("Validation metrics: " + str(valid_metrics))
 
     test_metrics = trainer.test(model_manager, dataloaders=test_loader, verbose=False)
     test_metrics = test_metrics[0]
-    print(test_metrics)
+    logger.info("Test set metrics: " + str(valid_metrics))
 
     return model_manager, test_metrics
 
 
 def split_into_train_val_test(
-    image_files, mask_files, train_val_proportion: tuple[float, float] = (0.7, 0.2)
+    image_files: list[Any],
+    mask_files: list[Any],
+    train_val_proportion: tuple[float, float] = (0.7, 0.2),
+    *,
+    random_state: int = 42,
 ):
     val_test_proportion = 1 - train_val_proportion[0]
     images_train, images_temp, masks_train, masks_temp = train_test_split(
-        image_files, mask_files, test_size=val_test_proportion, random_state=42
+        image_files, mask_files, test_size=val_test_proportion, random_state=random_state
     )
 
     val_proportion = train_val_proportion[1] / val_test_proportion
 
     # Then, split temp into val and test
     images_val, images_test, masks_val, masks_test = train_test_split(
-        images_temp, masks_temp, test_size=1 - val_proportion, random_state=42
+        images_temp, masks_temp, test_size=1 - val_proportion, random_state=random_state
     )
 
     return images_train, masks_train, images_val, images_test, masks_val, masks_test
