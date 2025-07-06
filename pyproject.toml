@@ -40,6 +40,7 @@ building-finder = "building_finder.cli:building_finder_cli"
 image-cropper = "image_cropper.cli:image_cropper_cli"
 energy-extractor = "energy_extractor.cli:energy_extractor_cli"
 combine-results = "information_fusion.cli:merge_results_cli"
+segment-images = "segmentation_model_v2.cli:main_cli"
 
 [dependency-groups]
 orchestration = [
