@@ -32,10 +32,11 @@ dependencies = [
     "torch>=2.7.1",
     "albumentations>=2.0.8",
     "scikit-learn>=1.7.0",
+    "onnxruntime>=1.22.0",
 ]
 
 [project.scripts]
-building-selector = "building_finder.cli:building_finder_cli"
+building-finder = "building_finder.cli:building_finder_cli"
 image-cropper = "image_cropper.cli:image_cropper_cli"
 energy-extractor = "energy_extractor.cli:energy_extractor_cli"
 combine-results = "information_fusion.cli:merge_results_cli"
