@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 import affine
 import geopandas as gpd
@@ -23,6 +24,8 @@ def crop_images_from_buildings(
     tile_manager: TileManager,
     output_location: str,
     output_format: str = "png",
+    crop_approach: Literal["auto", "fixed", "building_extent"] = "auto",
+    fixed_crop_size_m: float = 25.0,
 ):
     output_location = Path(output_location)
     output_location.mkdir(parents=True, exist_ok=True)
@@ -44,9 +47,9 @@ def crop_images_from_buildings(
         with rasterio.open(tile_file_path) as image_data:
             affine_transform_px_to_geo = image_data.transform
 
-            # res_x, res_y = image_data.res
-
-            bounding_box = create_squared_box_around(building_polygon, margin_around_building=5.0)
+            bounding_box = bounding_box_for_cropping(
+                building_polygon, crop_approach, fixed_crop_size_m
+            )
 
             crop_window = rasterio.windows.from_bounds(
                 *bounding_box.bounds,
@@ -97,6 +100,37 @@ def crop_images_from_buildings(
 
     overview_df = pd.DataFrame(overview_data)
     overview_df.to_csv(output_location / "overview.csv", index=False)
+
+
+def bounding_box_for_cropping(
+    building_polygon: shapely.Polygon, crop_approach, fixed_crop_size_m
+) -> shapely.Polygon:
+    bounding_box_extent = create_squared_box_around(building_polygon, margin_around_building=2.0)
+    building_geometry_centroid = building_polygon.centroid
+    bounding_box_fixed = shapely.box(
+        building_geometry_centroid.x - fixed_crop_size_m / 2,
+        building_geometry_centroid.y - fixed_crop_size_m / 2,
+        building_geometry_centroid.x + fixed_crop_size_m / 2,
+        building_geometry_centroid.y + fixed_crop_size_m / 2,
+    )
+
+    if crop_approach == "building_extent":
+        bounding_box = bounding_box_extent
+    elif crop_approach == "fixed":
+        bounding_box = bounding_box_fixed
+    elif crop_approach == "auto":
+        # we use the building extent if it is larger than the fixed size
+        if bounding_box_extent.area > bounding_box_fixed.area:
+            bounding_box = bounding_box_extent
+        else:
+            bounding_box = bounding_box_fixed
+    else:
+        raise ValueError(
+            f"Unknown crop_approach: {crop_approach}. "
+            "Use one of 'auto', 'fixed', or 'building_extent'."
+        )
+
+    return bounding_box
 
 
 def create_transform_for_cropped_image(

@@ -18,9 +18,12 @@ logger = get_client_logger()
     "--model-path",
     type=click.Path(exists=True),
     default="/Users/kopytjuk/Downloads/PV-Segmentation-deeplabv3.pt",
-    help="Path to the pre-trained model file.",
+    help="Path to the pre-trained model file (pytorch).",
 )
-def main_cli(input_folder, output_folder, model_path: str):
+@click.option(
+    "--threshold", type=click.FLOAT, default=0.5, help="Threshold for mask binarization."
+)
+def main_cli(input_folder, output_folder, model_path: str, threshold: float):
     """
     CLI tool to process images from INPUT_FOLDER and save masks to OUTPUT_FOLDER.
     """
@@ -29,11 +32,12 @@ def main_cli(input_folder, output_folder, model_path: str):
     output_folder = Path(output_folder)
     output_folder.mkdir(parents=True, exist_ok=True)
 
-    dataset = UnclassifiedDataset.from_folder(input_folder, resize_shape=(256, 256))
+    resize_shape = (256, 256)  # depends on the model
+    dataset = UnclassifiedDataset.from_folder(input_folder, resize_shape=resize_shape)
     logger.info(f"Loaded {len(dataset)} images from {input_folder}")
 
     batch_size = 16
-    num_workers = 4
+    num_workers = 1  # to maintain order of enumerations
     data_loader = torch.utils.data.DataLoader(
         dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers
     )
@@ -42,7 +46,6 @@ def main_cli(input_folder, output_folder, model_path: str):
 
     device = determine_torch_device()
     model = torch.load(model_path, weights_only=False, map_location=device)
-    # model = model.to(device)
 
     for batch_idx, images in enumerate(data_loader):
         logger.info(f"Processing batch {batch_idx + 1}/{len(data_loader)}")
@@ -53,7 +56,7 @@ def main_cli(input_folder, output_folder, model_path: str):
         with torch.no_grad():
             pred_masks = model(images)["out"]
             pred_masks = torch.sigmoid(pred_masks)
-            pred_masks = (pred_masks > 0.5).float()  # Binarize the masks
+            pred_masks = (pred_masks > threshold).float()  # Binarize the masks
             pred_masks = pred_masks.cpu()
 
         # Assuming the model outputs masks in the same shape as input images
