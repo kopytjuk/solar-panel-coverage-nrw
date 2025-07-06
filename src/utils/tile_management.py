@@ -1,5 +1,4 @@
 from pathlib import Path
-from urllib.parse import urljoin
 
 import geopandas as gpd
 import pandas as pd
@@ -7,8 +6,6 @@ import requests
 import shapely
 
 from utils.opengeodata_nrw import (
-    DOWNLOAD_BASE_URL,
-    FILE_EXTENSIONS,
     DatasetType,
 )
 
@@ -20,14 +17,13 @@ class TileManager:
     def __init__(
         self,
         tile_info: pd.DataFrame,
-        data_folder: str | Path | None = None,
-        tile_type: DatasetType | None = None,
+        file_extension: str | None = None,
     ):
         """Initialize the TileManager
 
         Args:
             tile_info (pd.DataFrame): dataframe with
-                columns `tile_name`, `min_x`, `min_y`, `extent`
+                columns `tile_name`, `file_path`, `min_x`, `min_y`, `extent`
         """
 
         # extract the geometries
@@ -44,10 +40,9 @@ class TileManager:
 
         self.tile_info = tile_info
 
-        self._data_folder = Path(data_folder) if isinstance(data_folder, str) else data_folder
-        self._tile_type = tile_type
+        self._file_extension = file_extension
 
-    def get_tile_name_from_point(self, x: float, y: float, with_extension: bool = False) -> str:
+    def get_tile_from_point(self, x: float, y: float) -> str:
         """Get the tile name for a given point
 
         Args:
@@ -71,21 +66,11 @@ class TileManager:
         if tiles.shape[0] > 1:
             raise ValueError(f"Multiple tiles found for point ({x}, {y}), should not happen!")
 
-        tile_name = tiles["tile_name"].iloc[0]
-
-        extension = FILE_EXTENSIONS[self._tile_type]
-
-        if tile_name.endswith(f".{extension}"):
-            tile_name = tile_name.split(f".{extension}")[0]
-
-        if with_extension:
-            return f"{tile_name}.{extension}"
-        else:
-            return tile_name
+        return tiles["file_path"].iloc[0]
 
     @property
     def file_extension(self) -> str:
-        return FILE_EXTENSIONS[self._tile_type]
+        return self._file_extension
 
     def get_tiles_intersecting(self, polygon: shapely.Polygon) -> list[str]:
         """Get the tile names that intersect with a given polygon
@@ -109,45 +94,6 @@ class TileManager:
             raise ValueError("No tile found for input polygon")
 
         return tiles["tile_name"].tolist()
-
-    def check_if_tile_exists(self, tile_name: str) -> bool:
-        """Check if a tile exists in the data folder
-
-        Args:
-            tile_name (str): tile name
-
-        Returns:
-            bool: True if the tile exists
-        """
-
-        file_extension = FILE_EXTENSIONS[self._tile_type]
-        tile_path = self._data_folder / f"{tile_name}.{file_extension}"
-        return tile_path.exists()
-
-    def download_tile(
-        self,
-        tile_name: str,
-        overwrite: bool = False,
-    ):
-        """Download a tile from a given URL
-
-        Args:
-            tile_name (str): tile name
-            overwrite (bool, optional): overwrite the file if it exists.
-                Defaults to False.
-        """
-        file_extension = FILE_EXTENSIONS[self._tile_type]
-        tile_filename = f"{tile_name}.{file_extension}"
-        tile_path = self._data_folder / tile_filename
-
-        if self.check_if_tile_exists(tile_name) and not overwrite:
-            print("File already exists, skipping download!")
-            return
-
-        base_url = DOWNLOAD_BASE_URL[self._tile_type]
-        download_url = urljoin(base_url, tile_filename)
-
-        download_file(download_url, str(tile_path))
 
     @classmethod
     def from_tile_file(
@@ -232,6 +178,30 @@ class TileManager:
         tile_info = pd.concat([tile_info, tile_extent], axis=1)
 
         return cls(tile_info, data_folder=data_folder, tile_type=tile_type)
+
+    @classmethod
+    def from_folder(cls, folder_name: str, extension: str = "tif") -> "TileManager":
+        folder = Path(folder_name)
+        tif_files = list(folder.rglob(f"dop20rgb_*.{extension}"))
+        tile_info = pd.DataFrame(
+            {"tile_name": [f.stem for f in tif_files], "file_path": [str(f) for f in tif_files]}
+        )
+
+        # Extract min_x, min_y, extent from tile_name
+        extent_list = []
+        for name in tile_info["tile_name"]:
+            # Example: dop20rgb_32_511_5701_1
+            parts = name.split("_")
+            min_x = int(parts[2]) * 1000
+            min_y = int(parts[3]) * 1000
+            extent = int(parts[4]) * 1000
+            extent_list.append({"min_x": min_x, "min_y": min_y, "extent": extent})
+
+        tile_extent = pd.DataFrame(extent_list)
+        tile_extent.columns = cls.extent_columns
+        tile_info = pd.concat([tile_info, tile_extent], axis=1)
+
+        return cls(tile_info, file_extension=extension)
 
 
 def get_bounding_box_from_tile_name(

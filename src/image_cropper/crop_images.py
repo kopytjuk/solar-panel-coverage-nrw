@@ -11,26 +11,21 @@ import shapely
 from rasterio.windows import transform as window_transform
 from tqdm import tqdm
 
-from utils import TileManager, transform_wgs84_to_utm32N
+from utils import transform_wgs84_to_utm32N
 from utils.logging import get_library_logger
-from utils.opengeodata_nrw import DatasetType
+from utils.tile_management import TileManager
 
 logger = get_library_logger(__name__)
 
 
 def crop_images_from_buildings(
-    buildings_gpkg_path: str, image_data_location: str, output_location: str
+    buildings: gpd.GeoDataFrame,
+    tile_manager: TileManager,
+    output_location: str,
+    output_format: str = "png",
 ):
     output_location = Path(output_location)
     output_location.mkdir(parents=True, exist_ok=True)
-
-    buildings = gpd.read_file(buildings_gpkg_path)
-
-    manager_aerial_images = TileManager.from_html_extraction_result(
-        "data/aerial_images.csv",
-        data_folder=image_data_location,
-        tile_type=DatasetType.AERIAL_IMAGE,
-    )
 
     overview_data = list()
 
@@ -41,21 +36,10 @@ def crop_images_from_buildings(
         building_polygon = transform_wgs84_to_utm32N(building_gps_polygon)
         building_geometry_centroid = building_polygon.centroid
 
-        tile_name = manager_aerial_images.get_tile_name_from_point(
+        tile_file_path = tile_manager.get_tile_from_point(
             building_geometry_centroid.x,
             building_geometry_centroid.y,
-            with_extension=False,
         )
-
-        if not manager_aerial_images.check_if_tile_exists(tile_name):
-            logger.info(f"Downloading tile data for {tile_name}")
-            manager_aerial_images.download_tile(tile_name)
-            logger.info("Download complete!")
-
-        file_extension = manager_aerial_images.file_extension
-        tile_filename = f"{tile_name}.{file_extension}"
-
-        tile_file_path = f"{image_data_location}/{tile_filename}"
 
         with rasterio.open(tile_file_path) as image_data:
             affine_transform_px_to_geo = image_data.transform
@@ -79,7 +63,7 @@ def crop_images_from_buildings(
                 # TODO: logic to combine data from neighboring tiles
                 continue
 
-            building_image_filename = f"{building_id}.png"
+            building_image_filename = f"{building_id}.{output_format}"
 
             plt.imsave(
                 output_location / building_image_filename,
